@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ProfileSection } from "@/components/ProfileSection";
 import { BentoGrid } from "@/components/BentoGrid";
 import { SetupCard } from "@/components/SetupCard";
@@ -33,45 +33,85 @@ export const ClientPageContent = ({
   const [focusedType, setFocusedType] = useState<"gear" | "pc">("gear");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
+  
+  const focusedItemRef = useRef<any>(null);
+
+  // Persistence: Get or Create a stable Client ID for this session to prevent refresh double-counting
+  const clientId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    let id = sessionStorage.getItem("vibe_client_id");
+    if (!id) {
+      id = Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem("vibe_client_id", id);
+    }
+    return id;
+  }, []);
 
   useEffect(() => {
+    focusedItemRef.current = focusedItem;
+  }, [focusedItem]);
+
+  useEffect(() => {
+    if (!clientId) return;
+
     // 1. CONSOLIDATED REAL-TIME: One channel for Presence and all Postgres updates
     const dashboardChannel = supabase.channel("dashboard_main");
     
+    // Helper to calculate distinct counts efficiently
+    const calculateCount = () => {
+      const state = dashboardChannel.presenceState();
+      const uniqueIds = new Set();
+      
+      Object.values(state).forEach((presences: any) => {
+        presences.forEach((p: any) => {
+          if (p.clientId) {
+            uniqueIds.add(p.clientId);
+          }
+        });
+      });
+
+      const finalCount = uniqueIds.size > 0 ? uniqueIds.size : Object.keys(state).length;
+      setOnlineCount(finalCount || 1);
+    };
+
     dashboardChannel
-      // Presence (Online Count)
-      .on("presence", { event: "sync" }, () => {
-        const state = dashboardChannel.presenceState();
-        setOnlineCount(Object.keys(state).length);
-      })
+      // Presence (Online Count) - Listening to all events for maximum responsiveness
+      .on("presence", { event: "sync" }, calculateCount)
+      .on("presence", { event: "join" }, calculateCount)
+      .on("presence", { event: "leave" }, calculateCount)
+      
       // Gear Updates
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "gear_items" }, (payload) => {
         setGearItems((prev) => prev.map(item => item.id === payload.new.id ? { ...item, ...payload.new } : item));
-        if (focusedItem?.id === payload.new.id) {
+        if (focusedItemRef.current?.id === payload.new.id) {
           setFocusedItem(payload.new);
         }
       })
       // PC Spec Updates
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pc_specs" }, (payload) => {
         setPcSpecsList((prev) => prev.map(item => item.id === payload.new.id ? { ...item, ...payload.new } : item));
-        if (focusedItem?.id === payload.new.id) {
+        if (focusedItemRef.current?.id === payload.new.id) {
           setFocusedItem(payload.new);
         }
       })
-      // SITE SETTINGS Updates (Critical for Master Toggles)
+      // SITE SETTINGS Updates
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "site_settings" }, (payload) => {
         setSiteSettings(payload.new);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await dashboardChannel.track({ online_at: new Date().toISOString() });
+          // Track presence immediately on subscription
+          await dashboardChannel.track({ 
+            online_at: new Date().toISOString(),
+            clientId: clientId
+          });
         }
       });
 
     return () => {
       dashboardChannel.unsubscribe();
     };
-  }, [focusedItem?.id]);
+  }, [clientId]); 
 
   const openFocus = (item: any, type: "gear" | "pc") => {
     setFocusedItem(item);
