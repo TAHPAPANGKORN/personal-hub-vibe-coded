@@ -48,6 +48,8 @@ CREATE TABLE gear_items (
   brand TEXT NOT NULL,
   image_url TEXT,
   affiliate_link TEXT,
+  description TEXT,           -- Story behind the gear
+  likes INTEGER DEFAULT 0,     -- Hype count
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -57,6 +59,8 @@ ALTER TABLE gear_items ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read access" ON gear_items FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage gear_items" ON gear_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- Allow public to increment likes
+CREATE POLICY "Allow public to update likes" ON gear_items FOR UPDATE USING (true) WITH CHECK (true);
 
 
 -- 4. Games Table
@@ -84,6 +88,8 @@ CREATE TABLE pc_specs (
   brand TEXT,
   specs_detail TEXT,            -- e.g., 16 Cores, 32 Threads, 5.7GHz
   image_url TEXT,
+  description TEXT,            -- Story behind the part
+  likes INTEGER DEFAULT 0,      -- Hype count
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -93,6 +99,24 @@ ALTER TABLE pc_specs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read access on pc_specs" ON pc_specs FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage pc_specs" ON pc_specs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- Allow public to increment likes
+CREATE POLICY "Allow public to update likes on pc_specs" ON pc_specs FOR UPDATE USING (true) WITH CHECK (true);
+
+
+-- 7. RPC Function for atomic increment (Recommended to run this in SQL Editor)
+-- This avoids race conditions when multiple people click at once.
+/*
+CREATE OR REPLACE FUNCTION increment_hype(row_id uuid, table_name text)
+RETURNS void AS $$
+BEGIN
+  IF table_name = 'gear_items' THEN
+    UPDATE gear_items SET likes = likes + 1 WHERE id = row_id;
+  ELSIF table_name = 'pc_specs' THEN
+    UPDATE pc_specs SET likes = likes + 1 WHERE id = row_id;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+*/
 
 
 -- 6. Site Settings Table (Visibility Flags)

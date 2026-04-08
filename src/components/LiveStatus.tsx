@@ -7,7 +7,7 @@ import Image from "next/image";
 // Replace this with the user's real Discord ID from .env, or fallback to a dummy/developer one for testing
 const DISCORD_ID = process.env.NEXT_PUBLIC_DISCORD_ID || "156114103033184256"; // Photic's ID as fallback
 
-export const LiveStatus = () => {
+export const LiveStatus = ({ onlineCount = 1 }: { onlineCount?: number }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,12 +19,26 @@ export const LiveStatus = () => {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`https://api.lanyard.rest/v1/users/${DISCORD_ID}`);
-        if (!res.ok) throw new Error("Failed to fetch");
+        const url = `https://api.lanyard.rest/v1/users/${DISCORD_ID}`;
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+          throw new Error(`Lanyard API responded with status: ${res.status}`);
+        }
+        
         const json = await res.json();
-        setData(json.data);
+        if (json.success) {
+          setData(json.data);
+        } else {
+          console.warn("Lanyard API error:", json.error?.message || "Unknown error");
+        }
       } catch (err) {
-        console.error("Lanyard error", err);
+        // Detailed error for debugging
+        if (err instanceof TypeError && err.message === "Failed to fetch") {
+          console.error("Lanyard Connection Error: Check your internet or if the Lanyard API is down.");
+        } else {
+          console.error("Lanyard error", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -142,6 +156,17 @@ export const LiveStatus = () => {
              <span className="text-xs text-zinc-500 font-medium">Chilling...</span>
            </div>
         )}
+
+        {/* Live Watchers Counter */}
+        <div className="flex items-center gap-2 pl-3 border-l border-zinc-800">
+          <div className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            {onlineCount} {onlineCount === 1 ? 'Watcher' : 'Watchers'}
+          </span>
+        </div>
       </div>
     </div>
   );

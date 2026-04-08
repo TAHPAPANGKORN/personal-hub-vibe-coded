@@ -6,7 +6,7 @@ import { FaYoutube, FaTwitch, FaTwitter, FaInstagram } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { LiveStatus } from "./LiveStatus";
 
-export const ProfileSection = () => {
+export const ProfileSection = ({ onlineCount = 1 }: { onlineCount?: number }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 space-y-6">
       <motion.div 
@@ -19,6 +19,8 @@ export const ProfileSection = () => {
           src="/profile.jpg"
           alt="Profile"
           fill
+          priority
+          sizes="128px"
           className="rounded-full object-cover bg-zinc-900"
         />
       </motion.div>
@@ -35,7 +37,7 @@ export const ProfileSection = () => {
         <p className="text-zinc-400 text-sm md:text-base max-w-md mx-auto font-medium leading-relaxed pb-2">
           A curated visual showcase of the tactical hardware, coding arsenal, and peripherals that fuel my daily grind.
         </p>
-        <LiveStatus />
+        <LiveStatus onlineCount={onlineCount} />
       </motion.div>
 
       <motion.div 

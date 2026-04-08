@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [affiliateLink, setAffiliateLink] = useState("");
+  const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -60,6 +61,7 @@ export default function AdminPage() {
   const [pcDetails, setPcDetails] = useState("");
   const [pcImageUrl, setPcImageUrl] = useState("");
   const [pcImageFile, setPcImageFile] = useState<File | null>(null);
+  const [pcDescription, setPcDescription] = useState("");
   const [submittingPc, setSubmittingPc] = useState(false);
   const [pcMessage, setPcMessage] = useState("");
 
@@ -158,6 +160,7 @@ export default function AdminPage() {
     setImageUrl("");
     setImageFile(null);
     setAffiliateLink("");
+    setDescription("");
     setMessage("");
   };
 
@@ -169,6 +172,7 @@ export default function AdminPage() {
     setImageUrl(item.image_url || "");
     setImageFile(null);
     setAffiliateLink(item.affiliate_link || "");
+    setDescription(item.description || "");
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -211,6 +215,7 @@ export default function AdminPage() {
       brand,
       image_url: finalImageUrl || null,
       affiliate_link: affiliateLink || null,
+      description: description || null,
     };
 
     let error;
@@ -385,6 +390,7 @@ export default function AdminPage() {
     setPcDetails("");
     setPcImageUrl("");
     setPcImageFile(null);
+    setPcDescription("");
     setPcMessage("");
   };
 
@@ -395,6 +401,7 @@ export default function AdminPage() {
     setPcBrand(pc.brand || "");
     setPcDetails(pc.specs_detail || "");
     setPcImageUrl(pc.image_url || "");
+    setPcDescription(pc.description || "");
     setPcImageFile(null);
     setPcMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -436,6 +443,7 @@ export default function AdminPage() {
       brand: pcBrand,
       specs_detail: pcDetails,
       image_url: finalImageUrl || null,
+      description: pcDescription || null,
     };
 
     let error;
@@ -805,6 +813,17 @@ export default function AdminPage() {
                   value={affiliateLink}
                   onChange={(e) => setAffiliateLink(e.target.value)}
                   className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm text-zinc-400 mb-1">The Story (Why this gear?)</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
+                  placeholder="Tell the story of why you chose this piece..."
                 />
               </div>
             </div>
@@ -1241,6 +1260,17 @@ export default function AdminPage() {
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Specs Detail (Optional)</label>
                 <input type="text" placeholder="e.g. 24GB GDDR6X" value={pcDetails} onChange={(e) => setPcDetails(e.target.value)} className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none" />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm text-zinc-400 mb-1">The Story (Why this part?)</label>
+                <textarea
+                  value={pcDescription}
+                  onChange={(e) => setPcDescription(e.target.value)}
+                  rows={2}
+                  className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
+                  placeholder="Tell the story behind this component..."
+                />
               </div>
               
               <div className="md:col-span-2 space-y-4 bg-black/20 p-5 rounded-xl border border-zinc-700/50">

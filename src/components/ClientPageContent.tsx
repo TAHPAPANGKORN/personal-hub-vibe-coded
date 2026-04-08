@@ -1,0 +1,236 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { ProfileSection } from "@/components/ProfileSection";
+import { BentoGrid } from "@/components/BentoGrid";
+import { SetupCard } from "@/components/SetupCard";
+import { FocusModal } from "@/components/FocusModal";
+import Image from "next/image";
+import { Gamepad2, Keyboard, Monitor, Trophy } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+
+interface ClientPageContentProps {
+  gearItems: any[];
+  gamesList: any[];
+  categoriesList: any[];
+  pcSpecsList: any[];
+  siteSettings: any;
+}
+
+export const ClientPageContent = ({
+  gearItems: initialGearItems,
+  gamesList,
+  categoriesList,
+  pcSpecsList: initialPcSpecsList,
+  siteSettings
+}: ClientPageContentProps) => {
+  const [gearItems, setGearItems] = useState(initialGearItems);
+  const [pcSpecsList, setPcSpecsList] = useState(initialPcSpecsList);
+  const [focusedItem, setFocusedItem] = useState<any>(null);
+  const [focusedType, setFocusedType] = useState<"gear" | "pc">("gear");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(1);
+
+  useEffect(() => {
+    // 1. PRESENCE: Track online users
+    const channel = supabase.channel("online-users");
+    
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        setOnlineCount(Object.keys(state).length);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+
+    // 2. REAL-TIME: Subscribe to updates for Gear and PC Specs
+    const gearSubscription = supabase
+      .channel("gear_realtime")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "gear_items" }, (payload) => {
+        setGearItems((prev) => prev.map(item => item.id === payload.new.id ? { ...item, ...payload.new } : item));
+        if (focusedItem?.id === payload.new.id) {
+          setFocusedItem(payload.new);
+        }
+      })
+      .subscribe();
+
+    const pcSubscription = supabase
+      .channel("pc_realtime")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pc_specs" }, (payload) => {
+        setPcSpecsList((prev) => prev.map(item => item.id === payload.new.id ? { ...item, ...payload.new } : item));
+        if (focusedItem?.id === payload.new.id) {
+          setFocusedItem(payload.new);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      gearSubscription.unsubscribe();
+      pcSubscription.unsubscribe();
+    };
+  }, [focusedItem?.id]);
+
+  const openFocus = (item: any, type: "gear" | "pc") => {
+    setFocusedItem(item);
+    setFocusedType(type);
+    setIsModalOpen(true);
+  };
+
+  // Extract unique categories present in gear items
+  const uniqueCategories = Array.from(new Set(gearItems.map((item: any) => item.category)));
+  
+  // Sort those categories based on the database sort_order
+  uniqueCategories.sort((a: any, b: any) => {
+    const aCat = categoriesList.find((c: any) => c.name === a);
+    const bCat = categoriesList.find((c: any) => c.name === b);
+    const aOrder = aCat ? aCat.sort_order : 999;
+    const bOrder = bCat ? bCat.sort_order : 999;
+    
+    if (aOrder === bOrder) return a.localeCompare(b);
+    return aOrder - bOrder;
+  });
+
+  return (
+    <>
+      <main className="min-h-screen py-10 md:py-16 space-y-16 md:space-y-24 pb-32">
+        <ProfileSection onlineCount={onlineCount} />
+
+        {/* GAMES & RANKS SECTION */}
+        {siteSettings.show_games && gamesList.length > 0 && (
+          <section className="max-w-7xl mx-auto px-4 md:px-8">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl">
+                <Trophy size={18} className="text-yellow-500" />
+              </div>
+              <h2 className="text-xs font-black italic uppercase tracking-[0.3em] text-zinc-400">
+                Competitive Status
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {gamesList.map((game: any) => (
+                <div key={game.id} className="group bg-zinc-900/40 border border-zinc-800/80 p-4 rounded-3xl flex items-center gap-4 hover:bg-zinc-900 hover:border-zinc-700 transition-all duration-300">
+                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-black border border-zinc-800 relative flex items-center justify-center font-black text-white text-xl overflow-hidden group-hover:scale-105 transition-transform">
+                    {game.image_url ? (
+                      <Image src={game.image_url} alt={game.name} fill className="object-cover" sizes="48px" />
+                    ) : (
+                      game.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-white font-bold line-clamp-1">{game.name}</p>
+                    {game.rank && (
+                      <p className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mt-0.5">{game.rank}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* PC BUILD SECTION */}
+        {siteSettings.show_pc_specs && pcSpecsList.length > 0 && (
+          <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 mb-8 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between mb-8 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl">
+                  <Monitor size={18} className="text-purple-500" />
+                </div>
+                <h2 className="text-xs font-black italic uppercase tracking-[0.3em] text-zinc-400">
+                  The Core Arsenal
+                </h2>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {pcSpecsList.map((pc: any) => (
+                <div 
+                  key={pc.id} 
+                  onClick={() => openFocus(pc, "pc")}
+                  className="bg-zinc-900/40 border border-zinc-800/80 p-6 rounded-3xl flex items-center gap-5 hover:border-purple-500/40 hover:bg-zinc-900 transition-all duration-300 group cursor-pointer"
+                >
+                  <div className="h-14 w-14 shrink-0 bg-black border border-zinc-800 rounded-2xl relative overflow-hidden flex items-center justify-center group-hover:bg-purple-500/5 transition-colors">
+                    {pc.image_url ? (
+                      <Image src={pc.image_url} alt={pc.name} fill className="object-cover" sizes="56px" />
+                    ) : (
+                      <span className="text-[10px] font-black text-zinc-700 uppercase">{pc.component_type.slice(0, 3)}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <span className="inline-block px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-[8px] uppercase tracking-wider font-black text-purple-400 rounded-md mb-2">{pc.component_type}</span>
+                    <h3 className="text-white font-bold text-sm leading-tight mb-1 truncate group-hover:text-purple-400 transition-colors">{pc.name}</h3>
+                    {pc.specs_detail && (
+                      <p className="text-[10px] text-zinc-500 font-medium truncate italic">{pc.specs_detail}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* GAMING SETUP SECTION */}
+        {siteSettings.show_gear && (
+          <section className="space-y-16">
+            <div className="max-w-7xl mx-auto px-4 md:px-8">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl">
+                  <Keyboard size={18} className="text-white" />
+                </div>
+                <h2 className="text-xs font-black italic uppercase tracking-[0.3em] text-zinc-400">
+                  Tactical Peripherals
+                </h2>
+              </div>
+            </div>
+
+            <div className="space-y-20 md:space-y-24">
+              {uniqueCategories.map((categoryName, catIndex) => {
+                const itemsInCategory = gearItems.filter((item: any) => item.category === categoryName);
+                
+                return (
+                  <div key={categoryName as string} className="space-y-8">
+                    <div className="max-w-7xl mx-auto px-4 md:px-8">
+                      <h3 className="text-lg font-black italic text-white tracking-widest uppercase border-l-2 border-purple-500 pl-4 py-1">
+                        {categoryName as string}
+                      </h3>
+                    </div>
+                    
+                    <BentoGrid>
+                      {itemsInCategory.map((item: any, index: number) => (
+                        <SetupCard
+                          key={item.id}
+                          id={item.id}
+                          category={item.category}
+                          model_name={item.model_name}
+                          brand={item.brand}
+                          image_url={item.image_url}
+                          affiliate_link={item.affiliate_link}
+                          likes={item.likes}
+                          index={index}
+                          priority={catIndex === 0 && index < 2}
+                          onClick={() => openFocus(item, "gear")}
+                        />
+                      ))}
+                    </BentoGrid>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <FocusModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        item={focusedItem}
+        type={focusedType}
+      />
+    </>
+  );
+};
