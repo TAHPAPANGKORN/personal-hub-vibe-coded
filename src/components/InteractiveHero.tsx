@@ -18,17 +18,24 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showAmbient, setShowAmbient] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    // Show ambient glow after a short delay for smooth entry
-    const timer = setTimeout(() => setShowAmbient(true), 1000);
+    
+    // Show ambient glow after a short delay
+    const ambientTimer = setTimeout(() => setShowAmbient(true), 1000);
+    
+    // Auto-hide instructions after 4 seconds
+    const instructTimer = setTimeout(() => setShowInstructions(false), 4000);
+
     return () => {
       window.removeEventListener("resize", checkMobile);
-      clearTimeout(timer);
+      clearTimeout(ambientTimer);
+      clearTimeout(instructTimer);
     };
   }, []);
 
@@ -49,6 +56,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
   const handlePointClick = (id: string) => {
     if (isMobile) {
       setActiveId(activeId === id ? null : id);
+      setShowInstructions(false);
     }
   };
 
@@ -80,7 +88,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
         {/* PERSPECTIVE REFLECTION / SHADOW - Desktop Only */}
         <div className="absolute -bottom-12 inset-x-12 h-24 bg-purple-600/20 blur-[60px] rounded-full -z-10 opacity-50 hidden md:block" />
         
-        {/* CORNER BRACKETS (Scanning Frame) */}
+        {/* CORNER BRACKETS (Scanning Frame) - Visible on all devices now */}
         <div className="absolute -top-4 -left-4 w-12 h-12 border-t-2 border-l-2 border-purple-500/40 rounded-tl-2xl z-20 pointer-events-none" />
         <div className="absolute -top-4 -right-4 w-12 h-12 border-t-2 border-r-2 border-purple-500/40 rounded-tr-2xl z-20 pointer-events-none" />
         <div className="absolute -bottom-4 -left-4 w-12 h-12 border-b-2 border-l-2 border-purple-500/40 rounded-bl-2xl z-20 pointer-events-none" />
@@ -89,7 +97,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
         <div 
           ref={containerRef}
           onClick={handleContainerClick}
-          className="relative group overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-900/50 backdrop-blur-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)]"
+          className="relative group overflow-hidden rounded-2xl md:rounded-[2.5rem] border border-white/10 bg-zinc-900/50 backdrop-blur-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)]"
         >
           {/* Aspect Ratio Box — Standard 16:9 */}
           <div className={`relative aspect-video w-full overflow-hidden transition-all duration-700 ${activeId ? "scale-[1.01]" : "scale-100"}`}>
@@ -229,7 +237,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
         {/* 🏷️ Hero Labels */}
         <div className="absolute bottom-6 left-6 md:bottom-10 md:left-10 z-30 pointer-events-none">
            <AnimatePresence>
-             {!activeId && (
+             {!activeId && showInstructions && (
                <motion.div 
                  initial={{ opacity: 0, x: -20 }}
                  animate={{ opacity: 1, x: 0 }}
