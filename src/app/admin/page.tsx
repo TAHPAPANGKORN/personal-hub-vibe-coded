@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ImageCropModal } from "@/components/ImageCropModal";
+import { FocusModal } from "@/components/FocusModal";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import Image from "next/image";
@@ -30,6 +32,16 @@ export default function AdminPage() {
   const [commentSearch, setCommentSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
+
+  // IMAGE CROP STATES
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [activeCropType, setActiveCropType] = useState<"gear" | "game" | "pc" | null>(null);
+
+  // MODAL STATES (Preivew)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [focusedItem, setFocusedItem] = useState<any>(null);
+  const [focusedType, setFocusedType] = useState<"gear" | "pc">("gear");
 
   // GEAR FORM STATES
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -152,6 +164,38 @@ export default function AdminPage() {
     }
     
     setFetchingData(false);
+  };
+
+  // --- CROP HANDLERS ---
+  const handleFileChangeForCrop = (e: React.ChangeEvent<HTMLInputElement>, type: "gear" | "game" | "pc") => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageToCrop(reader.result as string);
+        setActiveCropType(type);
+        setCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+      // Reset input so change event fires again even for same file
+      e.target.value = "";
+    }
+  };
+
+  const onCropCompleteHandler = (file: File) => {
+    if (activeCropType === "gear") {
+      setImageFile(file);
+      setImageUrl("");
+    } else if (activeCropType === "game") {
+      setGameImageFile(file);
+      setGameImageUrl("");
+    } else if (activeCropType === "pc") {
+      setPcImageFile(file);
+      setPcImageUrl("");
+    }
+    setCropModalOpen(false);
+    setImageToCrop(null);
+    setActiveCropType(null);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -852,7 +896,7 @@ export default function AdminPage() {
                 </h3>
                 
                 {(imageFile || imageUrl) && (
-                  <div className="flex items-center gap-4 p-4 bg-zinc-900/50 border border-zinc-700 rounded-xl mb-4">
+                  <div className="flex items-center gap-4 p-4 bg-zinc-900/50 border border-zinc-700 rounded-xl mb-4 relative group">
                     <div className="relative h-16 w-16 bg-zinc-800 rounded-lg overflow-hidden shrink-0">
                       <img 
                         src={imageFile ? URL.createObjectURL(imageFile) : imageUrl} 
@@ -860,21 +904,29 @@ export default function AdminPage() {
                         className="object-cover w-full h-full"
                       />
                     </div>
-                    <div className="text-xs text-zinc-400">Image Preview</div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs text-zinc-400 font-bold uppercase truncate">
+                            {imageFile ? imageFile.name : "Active Remote Image"}
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={() => { setImageFile(null); setImageUrl(""); }}
+                            className="mt-1 text-[10px] text-red-400 hover:text-red-300 font-black uppercase tracking-widest flex items-center gap-1"
+                        >
+                            <Trash2 size={10} /> Remove Image
+                        </button>
+                    </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-2">Upload Device File</label>
+                  <label className="block text-xs text-zinc-400 mb-2 font-bold uppercase tracking-wider">
+                    {imageFile || imageUrl ? "Replace Image File" : "Upload Image File"}
+                  </label>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setImageFile(e.target.files[0]);
-                        setImageUrl("");
-                      }
-                    }}
+                    onChange={(e) => handleFileChangeForCrop(e, "gear")}
                     className="w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600 focus:outline-none transition-all cursor-pointer"
                   />
                 </div>
@@ -1072,7 +1124,7 @@ export default function AdminPage() {
                 <p className="text-xs text-zinc-500">If no image is provided, the first letter of the game will be used as a stylized icon.</p>
                 
                 {(gameImageFile || gameImageUrl) && (
-                  <div className="flex items-center gap-4 p-4 bg-zinc-900/50 border border-zinc-700 rounded-xl mb-4">
+                  <div className="flex items-center gap-4 p-4 bg-zinc-900/50 border border-zinc-700 rounded-xl mb-4 relative group">
                     <div className="relative h-16 w-16 bg-zinc-800 rounded-lg overflow-hidden shrink-0">
                       <img 
                         src={gameImageFile ? URL.createObjectURL(gameImageFile) : gameImageUrl} 
@@ -1080,21 +1132,29 @@ export default function AdminPage() {
                         className="object-cover w-full h-full"
                       />
                     </div>
-                    <div className="text-xs text-zinc-400">Image Preview</div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs text-zinc-400 font-bold uppercase truncate">
+                            {gameImageFile ? gameImageFile.name : "Active Game Art"}
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={() => { setGameImageFile(null); setGameImageUrl(""); }}
+                            className="mt-1 text-[10px] text-red-400 hover:text-red-300 font-black uppercase tracking-widest flex items-center gap-1"
+                        >
+                            <Trash2 size={10} /> Remove Image
+                        </button>
+                    </div>
                   </div>
                 )}
                 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-2">Upload Device File</label>
+                  <label className="block text-xs text-zinc-400 mb-2 font-bold uppercase tracking-wider">
+                    Game Icon / Logo (1:1 Ratio Recommended)
+                  </label>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setGameImageFile(e.target.files[0]);
-                        setGameImageUrl("");
-                      }
-                    }}
+                    onChange={(e) => handleFileChangeForCrop(e, "game")}
                     className="w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600 flex-1 cursor-pointer"
                   />
                 </div>
@@ -1375,14 +1435,27 @@ export default function AdminPage() {
                   <ImageIcon size={16} /> Component Image (Optional)
                 </h3>
                 {(pcImageFile || pcImageUrl) && (
-                  <div className="flex items-center gap-4 p-4 bg-zinc-900/50 border border-zinc-700 rounded-xl mb-4">
+                  <div className="flex items-center gap-4 p-4 bg-zinc-900/50 border border-zinc-700 rounded-xl mb-4 relative group">
                     <div className="relative h-16 w-16 bg-zinc-800 rounded-lg overflow-hidden shrink-0">
                       <img src={pcImageFile ? URL.createObjectURL(pcImageFile) : pcImageUrl} alt="Preview" className="object-cover w-full h-full" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs text-zinc-400 font-bold uppercase truncate">
+                            {pcImageFile ? pcImageFile.name : "Active Component Image"}
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={() => { setPcImageFile(null); setPcImageUrl(""); }}
+                            className="mt-1 text-[10px] text-red-400 hover:text-red-300 font-black uppercase tracking-widest flex items-center gap-1"
+                        >
+                            <Trash2 size={10} /> Remove Image
+                        </button>
                     </div>
                   </div>
                 )}
                 <div>
-                  <input type="file" accept="image/*" onChange={(e) => { if(e.target.files && e.target.files.length > 0) { setPcImageFile(e.target.files[0]); setPcImageUrl(""); } }} className="w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600 focus:outline-none cursor-pointer" />
+                  <label className="block text-xs text-zinc-400 mb-2 font-bold uppercase tracking-wider text-left">Upload Component Image</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleFileChangeForCrop(e, "pc")} className="w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600 focus:outline-none cursor-pointer" />
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-400 mb-2">OR Paste URL</label>
@@ -1713,6 +1786,28 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* MODALS */}
+      <FocusModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        item={focusedItem}
+        type={focusedType}
+      />
+
+      {imageToCrop && (
+        <ImageCropModal
+          isOpen={cropModalOpen}
+          imageSrc={imageToCrop}
+          onClose={() => {
+            setCropModalOpen(false);
+            setImageToCrop(null);
+            setActiveCropType(null);
+          }}
+          onCropComplete={onCropCompleteHandler}
+          aspect={1}
+          title={`Adjust ${activeCropType?.toUpperCase()} Image`}
+        />
+      )}
     </div>
   );
 }
