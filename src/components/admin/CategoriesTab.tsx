@@ -6,9 +6,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { Pencil, Trash2, GripVertical } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/lib/supabase";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { useConfirm } from "@/hooks/useConfirm";
 import type { Category, GearItem } from "@/types/admin";
 
 interface CategoriesTabProps {
@@ -28,40 +31,46 @@ export function CategoriesTab({
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catName, setCatName] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const { confirm, confirmProps } = useConfirm();
 
   const resetForm = useCallback(() => {
     setEditingCatId(null);
     setCatName("");
-    setMessage("");
   }, []);
 
   const handleEdit = (cat: Category) => {
     setEditingCatId(cat.id);
     setCatName(cat.name);
-    setMessage("");
   };
 
   const handleDelete = async (id: string, name: string) => {
     const isInUse = items.some(gear => gear.category === name);
     if (isInUse) {
-      alert(`Cannot delete category "${name}"! It is currently being used by active gear items. Please reassign those items before deleting this category.`);
+      toast.warning(`Cannot delete category "${name}"! It is currently being used by active gear items. Please reassign those items before deleting this category.`);
       return;
     }
-    if (!confirm(`Are you sure you want to delete the category "${name}"?`)) return;
-    setDeletingId(id);
-    const { error } = await supabase.from("categories").delete().eq("id", id);
-    if (!error) {
-      await onRefetch();
-      if (editingCatId === id) resetForm();
-    }
-    setDeletingId(null);
+
+    confirm({
+      title: "Delete Category?",
+      message: `Are you sure you want to delete the category "${name}"? All items in this category will need a new category assigned.`,
+      onConfirm: async () => {
+        setDeletingId(id);
+        const { error } = await supabase.from("categories").delete().eq("id", id);
+        if (!error) {
+          toast.success(`Category "${name}" deleted!`);
+          await onRefetch();
+          if (editingCatId === id) resetForm();
+        } else {
+          toast.error(`Error deleting category: ${error.message}`);
+        }
+        setDeletingId(null);
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setMessage("");
 
     const payload: Partial<Category> & { sort_order?: number } = { name: catName };
     let dbError;
@@ -75,12 +84,11 @@ export function CategoriesTab({
     }
 
     if (dbError) {
-      setMessage(`Error: ${dbError.message}`);
+      toast.error(`Error: ${dbError.message}`);
     } else {
-      setMessage(editingCatId ? "Category updated!" : "Category added!");
+      toast.success(editingCatId ? "Category updated!" : "Category added!");
       resetForm();
       onRefetch();
-      setTimeout(() => setMessage(""), 3000);
     }
     setSubmitting(false);
   };
@@ -106,11 +114,6 @@ export function CategoriesTab({
           {editingCatId && <button type="button" onClick={resetForm} className="text-xs text-zinc-400 hover:text-white underline">Cancel Edit</button>}
         </div>
 
-        {message && (
-          <div className={`p-3 rounded-lg text-sm ${message.includes("Error") ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"}`}>
-            {message}
-          </div>
-        )}
 
         <div>
           <label className="block text-sm text-zinc-400 mb-1">Category Name</label>
@@ -180,6 +183,7 @@ export function CategoriesTab({
           </DragDropContext>
         )}
       </div>
+      <ConfirmModal {...confirmProps} />
     </div>
   );
 }

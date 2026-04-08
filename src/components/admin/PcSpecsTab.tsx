@@ -6,10 +6,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import Image from "next/image";
 import { Pencil, Trash2, GripVertical } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/lib/supabase";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImageSourceInput } from "@/components/admin/ImageSourceInput";
 import type { PcSpec, CropType } from "@/types/admin";
@@ -41,7 +44,7 @@ export function PcSpecsTab({
   const [pcImageUrl, setPcImageUrl] = useState("");
   const [pcDescription, setPcDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const { confirm, confirmProps } = useConfirm();
 
   const resetForm = useCallback(() => {
     setEditingPcId(null);
@@ -52,7 +55,6 @@ export function PcSpecsTab({
     setPcImageUrl("");
     setPendingPcFile(null);
     setPcDescription("");
-    setMessage("");
   }, [setPendingPcFile]);
 
   const handleEdit = (pc: PcSpec) => {
@@ -64,30 +66,36 @@ export function PcSpecsTab({
     setPcImageUrl(pc.image_url ?? "");
     setPcDescription(pc.description ?? "");
     setPendingPcFile(null);
-    setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
-    setDeletingId(id);
-    const { error } = await supabase.from("pc_specs").delete().eq("id", id);
-    if (!error) {
-      await onRefetch();
-      if (editingPcId === id) resetForm();
-    }
-    setDeletingId(null);
+    confirm({
+      title: "Delete PC Component?",
+      message: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setDeletingId(id);
+        const { error } = await supabase.from("pc_specs").delete().eq("id", id);
+        if (!error) {
+          toast.success(`Deleted ${name}!`);
+          await onRefetch();
+          if (editingPcId === id) resetForm();
+        } else {
+          toast.error(`Error: ${error.message}`);
+        }
+        setDeletingId(null);
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setMessage("");
 
     let finalImageUrl = pcImageUrl;
     if (pendingPcFile) {
       const { publicUrl, error } = await uploadImage(pendingPcFile, "pc_");
-      if (error) { setMessage(`Error uploading image: ${error}`); setSubmitting(false); return; }
+      if (error) { toast.error(`Error uploading image: ${error}`); setSubmitting(false); return; }
       finalImageUrl = publicUrl ?? "";
     }
 
@@ -111,12 +119,11 @@ export function PcSpecsTab({
     }
 
     if (dbError) {
-      setMessage(`Error: ${dbError.message}`);
+      toast.error(`Error: ${dbError.message}`);
     } else {
-      setMessage(editingPcId ? "PC Part updated successfully!" : "PC Part added successfully!");
+      toast.success(editingPcId ? "PC Part updated successfully!" : "PC Part added successfully!");
       resetForm();
       onRefetch();
-      setTimeout(() => setMessage(""), 3000);
     }
     setSubmitting(false);
   };
@@ -142,11 +149,6 @@ export function PcSpecsTab({
           {editingPcId && <button type="button" onClick={resetForm} className="text-xs text-zinc-400 hover:text-white underline">Cancel Edit</button>}
         </div>
 
-        {message && (
-          <div className={`p-3 rounded-lg text-sm ${message.includes("Error") ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"}`}>
-            {message}
-          </div>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
@@ -248,6 +250,7 @@ export function PcSpecsTab({
           </DragDropContext>
         )}
       </div>
+      <ConfirmModal {...confirmProps} />
     </div>
   );
 }

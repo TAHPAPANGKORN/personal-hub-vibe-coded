@@ -6,10 +6,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import Image from "next/image";
 import { Pencil, Trash2, GripVertical } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/lib/supabase";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImageSourceInput } from "@/components/admin/ImageSourceInput";
 import type { GameItem, CropType } from "@/types/admin";
@@ -38,7 +41,7 @@ export function GamesTab({
   const [gameRank, setGameRank] = useState("");
   const [gameImageUrl, setGameImageUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const { confirm, confirmProps } = useConfirm();
 
   const resetForm = useCallback(() => {
     setEditingGameId(null);
@@ -46,7 +49,8 @@ export function GamesTab({
     setGameRank("");
     setGameImageUrl("");
     setPendingGameFile(null);
-    setMessage("");
+    setGameImageUrl("");
+    setPendingGameFile(null);
   }, [setPendingGameFile]);
 
   const handleEdit = (game: GameItem) => {
@@ -55,30 +59,38 @@ export function GamesTab({
     setGameRank(game.rank ?? "");
     setGameImageUrl(game.image_url ?? "");
     setPendingGameFile(null);
-    setMessage("");
+    setGameImageUrl(game.image_url ?? "");
+    setPendingGameFile(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
-    setDeletingId(id);
-    const { error } = await supabase.from("games").delete().eq("id", id);
-    if (!error) {
-      await onRefetch();
-      if (editingGameId === id) resetForm();
-    }
-    setDeletingId(null);
+    confirm({
+      title: "Delete Game?",
+      message: `Are you sure you want to delete "${name}"? Your rank data for this game will also be removed.`,
+      onConfirm: async () => {
+        setDeletingId(id);
+        const { error } = await supabase.from("games").delete().eq("id", id);
+        if (!error) {
+          toast.success(`Deleted ${name}!`);
+          await onRefetch();
+          if (editingGameId === id) resetForm();
+        } else {
+          toast.error(`Error: ${error.message}`);
+        }
+        setDeletingId(null);
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setMessage("");
 
     let finalImageUrl = gameImageUrl;
     if (pendingGameFile) {
       const { publicUrl, error } = await uploadImage(pendingGameFile, "game_");
-      if (error) { setMessage(`Error uploading game image: ${error}`); setSubmitting(false); return; }
+      if (error) { toast.error(`Error uploading game image: ${error}`); setSubmitting(false); return; }
       finalImageUrl = publicUrl ?? "";
     }
 
@@ -99,12 +111,11 @@ export function GamesTab({
     }
 
     if (dbError) {
-      setMessage(`Error: ${dbError.message}`);
+      toast.error(`Error: ${dbError.message}`);
     } else {
-      setMessage(editingGameId ? "Game updated successfully!" : "Game added successfully!");
+      toast.success(editingGameId ? "Game updated successfully!" : "Game added successfully!");
       resetForm();
       onRefetch();
-      setTimeout(() => setMessage(""), 3000);
     }
     setSubmitting(false);
   };
@@ -130,11 +141,6 @@ export function GamesTab({
           {editingGameId && <button type="button" onClick={resetForm} className="text-xs text-zinc-400 hover:text-white underline">Cancel Edit</button>}
         </div>
 
-        {message && (
-          <div className={`p-3 rounded-lg text-sm ${message.includes("Error") ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"}`}>
-            {message}
-          </div>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
@@ -225,6 +231,7 @@ export function GamesTab({
           </DragDropContext>
         )}
       </div>
+      <ConfirmModal {...confirmProps} />
     </div>
   );
 }

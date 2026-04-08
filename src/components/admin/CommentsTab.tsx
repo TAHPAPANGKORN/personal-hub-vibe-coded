@@ -6,8 +6,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import { Trash2, Globe, MapPin, Monitor, Smartphone, Calendar, MessageSquare, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { useConfirm } from "@/hooks/useConfirm";
 import type { Comment, SiteSettings } from "@/types/admin";
 
 interface CommentsTabProps {
@@ -29,6 +32,7 @@ export function CommentsTab({
   const [locationFilter, setLocationFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
   const [selectedComments, setSelectedComments] = useState<string[]>([]);
+  const { confirm, confirmProps } = useConfirm();
 
   const uniqueLocations = useMemo(
     () => [...new Set(commentsList.map(c => c.location).filter((l): l is string => !!l && l !== "Unknown"))],
@@ -50,28 +54,51 @@ export function CommentsTab({
   const geoCount = useMemo(() => commentsList.filter(c => c.location && c.location !== "Unknown").length, [commentsList]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
-    setDeletingId(id);
-    const { error } = await supabase.from("comments").delete().eq("id", id);
-    if (error) alert(error.message);
-    else await onRefetch();
-    setDeletingId(null);
+    confirm({
+      title: "Delete Comment?",
+      message: "Are you sure you want to delete this comment? It will be removed from your public guestbook forever.",
+      onConfirm: async () => {
+        setDeletingId(id);
+        const { error } = await supabase.from("comments").delete().eq("id", id);
+        if (error) toast.error(error.message);
+        else {
+          toast.success("Comment deleted!");
+          await onRefetch();
+        }
+        setDeletingId(null);
+      }
+    });
   };
 
   const handleDeleteAll = async () => {
-    if (!confirm("⚠️ DANGER: This will delete ALL comments. Proceed?")) return;
-    const { error } = await supabase.from("comments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    if (error) alert(error.message);
-    else onRefetch();
+    confirm({
+      title: "Wipe All Guestbook Items?",
+      message: "⚠️ DANGER: This will permanently remove EVERY comment from your guestbook. This action is irreversible.",
+      confirmText: "Yes, Wipe Everything",
+      onConfirm: async () => {
+        const { error } = await supabase.from("comments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        if (error) toast.error(error.message);
+        else {
+          toast.success("All comments cleared!");
+          onRefetch();
+        }
+      }
+    });
   };
 
   const handleDeleteSelected = async () => {
     if (selectedComments.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedComments.length} selected comments?`)) return;
-    const { error } = await supabase.from("comments").delete().in("id", selectedComments);
-    if (error) { alert(`Error: ${error.message}`); return; }
-    setSelectedComments([]);
-    await onRefetch();
+    confirm({
+      title: `Delete ${selectedComments.length} Selected?`,
+      message: `Are you sure you want to delete ${selectedComments.length} vibes? This action cannot be undone.`,
+      onConfirm: async () => {
+        const { error } = await supabase.from("comments").delete().in("id", selectedComments);
+        if (error) { toast.error(`Error: ${error.message}`); return; }
+        toast.success(`${selectedComments.length} comments deleted!`);
+        setSelectedComments([]);
+        await onRefetch();
+      }
+    });
   };
 
   const toggleSelection = (id: string) =>
@@ -283,6 +310,8 @@ export function CommentsTab({
           </div>
         )}
       </div>
+
+      <ConfirmModal {...confirmProps} />
     </div>
   );
 }

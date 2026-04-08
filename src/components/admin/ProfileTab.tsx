@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImageSourceInput } from "@/components/admin/ImageSourceInput";
@@ -40,7 +41,6 @@ export function ProfileTab({
   const [instagram, setInstagram] = useState("");
   const [website, setWebsite] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
 
   // Populate form from siteSettings when loaded
   useEffect(() => {
@@ -58,41 +58,41 @@ export function ProfileTab({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setMessage("");
 
-    let finalImageUrl = imageUrl;
-    if (pendingProfileFile) {
-      const { publicUrl, error } = await uploadImage(pendingProfileFile, "profile_");
-      if (error) {
-        setMessage(`Error uploading avatar: ${error}`);
-        setSubmitting(false);
-        return;
+    const updateProfile = async () => {
+      let finalImageUrl = imageUrl;
+      if (pendingProfileFile) {
+        const { publicUrl, error: uploadErr } = await uploadImage(pendingProfileFile, "profile_");
+        if (uploadErr) throw new Error(`Error uploading avatar: ${uploadErr}`);
+        finalImageUrl = publicUrl ?? "";
       }
-      finalImageUrl = publicUrl ?? "";
-    }
 
-    const { error } = await supabase
-      .from("site_settings")
-      .update({
-        profile_title: title,
-        profile_description: description,
-        profile_image_url: finalImageUrl || null,
-        social_youtube: youtube || null,
-        social_twitch: twitch || null,
-        social_twitter: twitter || null,
-        social_instagram: instagram || null,
-        social_website: website || null,
-      })
-      .eq("id", siteSettings!.id);
+      const { error: dbErr } = await supabase
+        .from("site_settings")
+        .update({
+          profile_title: title,
+          profile_description: description,
+          profile_image_url: finalImageUrl || null,
+          social_youtube: youtube || null,
+          social_twitch: twitch || null,
+          social_twitter: twitter || null,
+          social_instagram: instagram || null,
+          social_website: website || null,
+        })
+        .eq("id", siteSettings!.id);
 
-    if (error) {
-      setMessage(`Error: ${error.message}`);
-    } else {
-      setMessage("Profile updated successfully!");
+      if (dbErr) throw dbErr;
+
       setPendingProfileFile(null);
       await onRefetchSettings();
-      setTimeout(() => setMessage(""), 3000);
-    }
+    };
+
+    toast.promise(updateProfile(), {
+      loading: "Saving profile changes...",
+      success: "Profile updated successfully!",
+      error: (err) => `Failed to update profile: ${err.message || err}`,
+    });
+
     setSubmitting(false);
   };
 
@@ -119,12 +119,6 @@ export function ProfileTab({
             <p className="text-xs text-zinc-500 mt-1">Manage the hero section shown on the public page.</p>
           </div>
         </div>
-
-        {message && (
-          <div className={`p-3 rounded-lg text-sm ${message.includes("Error") ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"}`}>
-            {message}
-          </div>
-        )}
 
         {/* AVATAR */}
         <ImageSourceInput

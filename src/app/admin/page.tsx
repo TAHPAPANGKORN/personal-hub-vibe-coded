@@ -6,10 +6,10 @@
 // ============================================================
 
 "use client";
-
+import { toast } from "sonner";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { ImageCropModal } from "@/components/ImageCropModal";
+import { ImageCropModal } from "@/components/ui/ImageCropModal";
 import { ProfileTab } from "@/components/admin/ProfileTab";
 import { GearTab } from "@/components/admin/GearTab";
 import { GamesTab } from "@/components/admin/GamesTab";
@@ -93,7 +93,8 @@ export default function AdminPage() {
             e.preventDefault();
             setAuthLoading(true);
             const { error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) alert(error.message);
+            if (error) toast.error(error.message);
+            else toast.success("Welcome back, Admin!");
             setAuthLoading(false);
           }}
           className="bg-zinc-900 border border-zinc-800 p-8 rounded-2xl max-w-md w-full space-y-4 shadow-xl"
