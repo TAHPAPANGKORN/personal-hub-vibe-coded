@@ -16,46 +16,59 @@ interface FocusModalProps {
 export const FocusModal = ({ isOpen, onClose, item, type }: FocusModalProps) => {
   const [likes, setLikes] = useState(item?.likes || 0);
   const [hasLiked, setHasLiked] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
 
   useEffect(() => {
     if (item) {
-      setLikes(item.likes || 0);
+      // RESET: When opening a new item, always start fresh
       const likedItems = JSON.parse(localStorage.getItem("hyped_items") || "[]");
-      setHasLiked(likedItems.includes(item.id));
+      const alreadyLiked = likedItems.includes(item.id);
+      
+      setHasLiked(alreadyLiked);
+      setIsLiking(false); // Crucial: Reset the lock when item changes
+      setLikes(item.likes || 0);
     }
-  }, [item]);
+  }, [item?.id]); // Only run when the specific item ID changes
+
+  // Dynamic Sync: Keep likes in sync with Real-time updates without flickering
+  useEffect(() => {
+    if (item && isLiking) {
+      if ((item.likes || 0) >= likes) {
+        setLikes(item.likes || 0);
+        setIsLiking(false);
+      }
+    }
+  }, [item?.likes, isLiking, likes]);
 
   if (!item) return null;
 
   const handleHype = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (hasLiked) return;
+    if (hasLiked || isLiking) return;
 
     try {
       const tableName = type === "gear" ? "gear_items" : "pc_specs";
       
-      // OPTIMISTIC UPDATE: Update UI first
-      const newLikes = likes + 1;
-      setLikes(newLikes);
+      setIsLiking(true);
+      setLikes((prev: number) => prev + 1);
       setHasLiked(true);
 
-      // Persist to localStorage
       const likedItems = JSON.parse(localStorage.getItem("hyped_items") || "[]");
       localStorage.setItem("hyped_items", JSON.stringify([...likedItems, item.id]));
 
-      // Update Database using Secure RPC
       const { error } = await supabase.rpc("increment_hype", {
         row_id: item.id,
         table_name: tableName,
       });
 
       if (error) {
-        // Rollback if DB fails
-        setLikes(likes);
+        setLikes((prev: number) => Math.max(0, prev - 1));
         setHasLiked(false);
+        setIsLiking(false);
         console.error("Error hyping item via RPC:", error);
       }
     } catch (err) {
+      setIsLiking(false);
       console.error("Error hyping item:", err);
     }
   };
