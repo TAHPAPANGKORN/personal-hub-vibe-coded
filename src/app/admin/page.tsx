@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { ImageCropModal } from "@/components/ImageCropModal";
+import { ProfileTab } from "@/components/admin/ProfileTab";
 import { GearTab } from "@/components/admin/GearTab";
 import { GamesTab } from "@/components/admin/GamesTab";
 import { PcSpecsTab } from "@/components/admin/PcSpecsTab";
@@ -19,7 +20,7 @@ import { useAdminData } from "@/hooks/useAdminData";
 import { useImageCrop } from "@/hooks/useImageCrop";
 import type { AdminTab, SiteSettings } from "@/types/admin";
 import type { Session } from "@supabase/supabase-js";
-import { Keyboard, Tag, Monitor, Gamepad2, MessageSquare, type LucideIcon } from "lucide-react";
+import { User, Keyboard, Tag, Monitor, Gamepad2, MessageSquare, type LucideIcon } from "lucide-react";
 
 // Pending crop files are lifted up here so they can be set by useImageCrop
 // and consumed by each Tab component upon form submission.
@@ -28,12 +29,13 @@ export default function AdminPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<AdminTab>("gear");
+  const [activeTab, setActiveTab] = useState<AdminTab>("profile");
 
   // Pending crop results — lifted here to bridge the crop hook → tab components
   const [pendingGearFile, setPendingGearFile] = useState<File | null>(null);
   const [pendingGameFile, setPendingGameFile] = useState<File | null>(null);
   const [pendingPcFile, setPendingPcFile] = useState<File | null>(null);
+  const [pendingProfileFile, setPendingProfileFile] = useState<File | null>(null);
 
   // ── Data ──────────────────────────────────────────────────
   const adminData = useAdminData(
@@ -44,9 +46,10 @@ export default function AdminPage() {
   // ── Image Crop ────────────────────────────────────────────
   const { cropModalOpen, imageToCrop, activeCropType, handleFileChangeForCrop, onCropCompleteHandler, closeCropModal } =
     useImageCrop({
-      onGearCropDone: (file) => { setPendingGearFile(file); },
-      onGameCropDone: (file) => { setPendingGameFile(file); },
-      onPcCropDone:  (file) => { setPendingPcFile(file); },
+      onGearCropDone:    (file) => { setPendingGearFile(file); },
+      onGameCropDone:    (file) => { setPendingGameFile(file); },
+      onPcCropDone:      (file) => { setPendingPcFile(file); },
+      onProfileCropDone: (file) => { setPendingProfileFile(file); },
     });
 
   // ── Auth ──────────────────────────────────────────────────
@@ -115,11 +118,12 @@ export default function AdminPage() {
   }
 
   const tabs: { key: AdminTab; label: string; short: string; icon: LucideIcon }[] = [
-    { key: "gear",       label: "Gear Items",    short: "Gear",      icon: Keyboard },
+    { key: "profile",    label: "Profile",       short: "Profile",    icon: User },
+    { key: "gear",       label: "Gear Items",    short: "Gear",       icon: Keyboard },
     { key: "categories", label: "Categories",    short: "Categories", icon: Tag },
-    { key: "pc_specs",   label: "PC Build",      short: "PC Build",  icon: Monitor },
-    { key: "games",      label: "Games & Ranks", short: "Games",     icon: Gamepad2 },
-    { key: "comments",   label: "Comments",      short: "Comments",  icon: MessageSquare },
+    { key: "pc_specs",   label: "PC Build",      short: "PC Build",   icon: Monitor },
+    { key: "games",      label: "Games & Ranks", short: "Games",      icon: Gamepad2 },
+    { key: "comments",   label: "Comments",      short: "Comments",   icon: MessageSquare },
   ];
 
   return (
@@ -245,6 +249,15 @@ export default function AdminPage() {
       </nav>
 
       {/* TAB CONTENT */}
+      {activeTab === "profile" && (
+        <ProfileTab
+          siteSettings={adminData.siteSettings}
+          onFileChangeForCrop={handleFileChangeForCrop}
+          pendingProfileFile={pendingProfileFile}
+          setPendingProfileFile={setPendingProfileFile}
+          onRefetchSettings={adminData.refetch}
+        />
+      )}
       {activeTab === "gear" && (
         <GearTab
           items={adminData.items}

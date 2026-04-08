@@ -55,14 +55,24 @@ export interface Comment {
 
 export interface SiteSettings {
   id: string;
+  // Visibility toggles
   show_games: boolean;
   show_pc_specs: boolean;
   show_gear: boolean;
   show_floating_comments: boolean;
   show_comment_input: boolean;
   enable_gps: boolean;
+  // Profile fields
+  profile_title: string | null;
+  profile_description: string | null;
+  profile_image_url: string | null;
+  social_youtube: string | null;
+  social_twitch: string | null;
+  social_twitter: string | null;
+  social_instagram: string | null;
+  social_website: string | null;
 }
 
-export type AdminTab = "gear" | "categories" | "games" | "pc_specs" | "comments";
-export type CropType = "gear" | "game" | "pc";
+export type AdminTab = "profile" | "gear" | "categories" | "games" | "pc_specs" | "comments";
+export type CropType = "gear" | "game" | "pc" | "profile";
 export type FocusType = "gear" | "pc";

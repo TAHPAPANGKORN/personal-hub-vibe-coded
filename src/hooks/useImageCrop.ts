@@ -7,18 +7,14 @@
 import { useState, useCallback } from "react";
 import type { CropType } from "@/types/admin";
 
-interface CropTarget {
-  file: File | null;
-  url: string;
-}
-
 interface UseImageCropProps {
   onGearCropDone: (file: File) => void;
   onGameCropDone: (file: File) => void;
   onPcCropDone: (file: File) => void;
+  onProfileCropDone: (file: File) => void;
 }
 
-export function useImageCrop({ onGearCropDone, onGameCropDone, onPcCropDone }: UseImageCropProps) {
+export function useImageCrop({ onGearCropDone, onGameCropDone, onPcCropDone, onProfileCropDone }: UseImageCropProps) {
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [activeCropType, setActiveCropType] = useState<CropType | null>(null);
@@ -46,12 +42,13 @@ export function useImageCrop({ onGearCropDone, onGameCropDone, onPcCropDone }: U
       if (activeCropType === "gear") onGearCropDone(file);
       else if (activeCropType === "game") onGameCropDone(file);
       else if (activeCropType === "pc") onPcCropDone(file);
+      else if (activeCropType === "profile") onProfileCropDone(file);
 
       setCropModalOpen(false);
       setImageToCrop(null);
       setActiveCropType(null);
     },
-    [activeCropType, onGearCropDone, onGameCropDone, onPcCropDone]
+    [activeCropType, onGearCropDone, onGameCropDone, onPcCropDone, onProfileCropDone]
   );
 
   const closeCropModal = useCallback(() => {

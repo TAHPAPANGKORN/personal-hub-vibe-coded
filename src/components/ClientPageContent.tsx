@@ -143,7 +143,7 @@ export const ClientPageContent = ({
           {siteSettings?.show_floating_comments !== false && <FloatingComments />}
           {/* z-10: profile content sits in front of comments */}
           <div className="relative z-10">
-            <ProfileSection onlineCount={onlineCount} />
+            <ProfileSection onlineCount={onlineCount} settings={siteSettings} />
           </div>
         </div>
 

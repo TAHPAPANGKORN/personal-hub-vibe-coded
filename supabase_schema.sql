@@ -89,15 +89,25 @@ CREATE POLICY "Allow public read access on pc_specs" ON pc_specs FOR SELECT USIN
 CREATE POLICY "Allow admin to manage pc_specs" ON pc_specs FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
--- 6. SITE SETTINGS TABLE (Master Toggles)
+-- 6. SITE SETTINGS TABLE (Master Toggles + Profile)
 CREATE TABLE IF NOT EXISTS site_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  -- Visibility toggles
   show_games BOOLEAN DEFAULT true,
   show_pc_specs BOOLEAN DEFAULT true,
   show_gear BOOLEAN DEFAULT true,
   show_floating_comments BOOLEAN DEFAULT true,
   show_comment_input BOOLEAN DEFAULT true,
   enable_gps BOOLEAN DEFAULT true,
+  -- Profile fields
+  profile_title TEXT DEFAULT 'My Personal Setup',
+  profile_description TEXT DEFAULT 'A curated visual showcase of the tactical hardware, coding arsenal, and peripherals that fuel my daily grind.',
+  profile_image_url TEXT DEFAULT NULL,
+  social_youtube TEXT DEFAULT 'https://www.youtube.com/@tah2832#',
+  social_twitch TEXT DEFAULT 'https://www.twitch.tv/tahaiiya01',
+  social_twitter TEXT DEFAULT 'https://x.com/PapangkornPj',
+  social_instagram TEXT DEFAULT 'https://www.instagram.com/xfattahz/',
+  social_website TEXT DEFAULT 'https://www.papangkorn.info',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -105,8 +115,22 @@ ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on site_settings" ON site_settings FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage site_settings" ON site_settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-INSERT INTO site_settings (id, show_games, show_pc_specs, show_gear, show_floating_comments, show_comment_input, enable_gps) 
-VALUES ('00000000-0000-0000-0000-000000000001', true, true, true, true, true, true)
+INSERT INTO site_settings (
+  id, 
+  show_games, show_pc_specs, show_gear, show_floating_comments, show_comment_input, enable_gps,
+  profile_title, profile_description, social_youtube, social_twitch, social_twitter, social_instagram, social_website
+) 
+VALUES (
+  '00000000-0000-0000-0000-000000000001', 
+  true, true, true, true, true, true,
+  'My Personal Setup', 
+  'A curated visual showcase of the tactical hardware, coding arsenal, and peripherals that fuel my daily grind.',
+  'https://www.youtube.com/@tah2832#',
+  'https://www.twitch.tv/tahaiiya01',
+  'https://x.com/mogutan41181592',
+  'https://www.instagram.com/xfattahz/',
+  'https://www.papangkorn.info'
+)
 ON CONFLICT (id) DO NOTHING;
 
 

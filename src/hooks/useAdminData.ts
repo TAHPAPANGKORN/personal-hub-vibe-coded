@@ -75,7 +75,7 @@ export function useAdminData(defaultCategoryCallback?: (name: string) => void): 
         .order("created_at", { ascending: false }),
       supabase
         .from("site_settings")
-        .select("id, show_games, show_pc_specs, show_gear, show_floating_comments, show_comment_input, enable_gps")
+        .select("*")
         .limit(1)
         .single(),
     ]);
