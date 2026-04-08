@@ -1,37 +1,11 @@
--- Create gear_items table
-CREATE TABLE gear_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  category TEXT NOT NULL,
-  model_name TEXT NOT NULL,
-  brand TEXT NOT NULL,
-  image_url TEXT,
-  affiliate_link TEXT,
-  sort_order INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE gear_items ENABLE ROW LEVEL SECURITY;
-
--- Policy: Everyone can view gear_items
-CREATE POLICY "Allow public read access"
-  ON gear_items
-  FOR SELECT
-  USING (true);
-
--- Policy: Only authenticated users (Admin) can insert/update/delete
-CREATE POLICY "Allow admin to manage gear_items"
-  ON gear_items
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
-
--- Create a storage bucket for images
+-- 1. Create a storage bucket for images (if not exists)
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('gear_images', 'gear_images', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- Storage Policy: Clean up old non-functioning policies if they exist
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+DROP POLICY IF EXISTS "Admin Upload Access" ON storage.objects;
 
 -- Storage Policy: Allow public to read images
 CREATE POLICY "Public Read Access"
@@ -44,7 +18,8 @@ CREATE POLICY "Admin Upload Access"
   TO authenticated
   WITH CHECK ( bucket_id = 'gear_images' );
 
--- Create categories table
+
+-- 2. Categories Table (Must be created first)
 CREATE TABLE categories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -53,32 +28,38 @@ CREATE TABLE categories (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS for categories
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 
--- Policy: Everyone can view categories
-CREATE POLICY "Allow public read access on categories"
-  ON categories
-  FOR SELECT
-  USING (true);
+CREATE POLICY "Allow public read access on categories" ON categories FOR SELECT USING (true);
+CREATE POLICY "Allow admin to manage categories" ON categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Policy: Only Admin can manage categories
-CREATE POLICY "Allow admin to manage categories"
-  ON categories
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
-
--- Insert some default categories
+-- Insert default categories
 INSERT INTO categories (name, sort_order) VALUES
-('Keyboard', 1),
-('Mouse', 2),
-('Monitor', 3),
-('Audio', 4)
+('Keyboard', 1), ('Mouse', 2), ('Monitor', 3), ('Audio', 4)
 ON CONFLICT (name) DO NOTHING;
 
--- Create games table
+
+-- 3. Gear Items Table (Linked to categories.name)
+CREATE TABLE gear_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  -- Foreign Key pointing to categories.name with ON UPDATE CASCADE
+  category TEXT NOT NULL REFERENCES categories(name) ON UPDATE CASCADE ON DELETE RESTRICT,
+  model_name TEXT NOT NULL,
+  brand TEXT NOT NULL,
+  image_url TEXT,
+  affiliate_link TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE gear_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read access" ON gear_items FOR SELECT USING (true);
+CREATE POLICY "Allow admin to manage gear_items" ON gear_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+
+-- 4. Games Table
 CREATE TABLE games (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -89,24 +70,13 @@ CREATE TABLE games (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS for games
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 
--- Policy: Everyone can view games
-CREATE POLICY "Allow public read access on games"
-  ON games
-  FOR SELECT
-  USING (true);
+CREATE POLICY "Allow public read access on games" ON games FOR SELECT USING (true);
+CREATE POLICY "Allow admin to manage games" ON games FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Policy: Only Admin can manage games
-CREATE POLICY "Allow admin to manage games"
-  ON games
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
 
--- Create pc_specs table
+-- 5. PC Specs Table
 CREATE TABLE pc_specs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   component_type TEXT NOT NULL, -- e.g., CPU, GPU, RAM, Motherboard
@@ -119,26 +89,13 @@ CREATE TABLE pc_specs (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS for pc_specs
 ALTER TABLE pc_specs ENABLE ROW LEVEL SECURITY;
 
--- Policy: Everyone can view pc_specs
-CREATE POLICY "Allow public read access on pc_specs"
-  ON pc_specs
-  FOR SELECT
-  USING (true);
+CREATE POLICY "Allow public read access on pc_specs" ON pc_specs FOR SELECT USING (true);
+CREATE POLICY "Allow admin to manage pc_specs" ON pc_specs FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Policy: Only Admin can manage pc_specs
-CREATE POLICY "Allow admin to manage pc_specs"
-  ON pc_specs
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
 
--- =====================================
--- 5. Site Settings Schema (New feature flags)
--- =====================================
+-- 6. Site Settings Table (Visibility Flags)
 CREATE TABLE site_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   show_games BOOLEAN DEFAULT true,
@@ -147,22 +104,10 @@ CREATE TABLE site_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS for site_settings
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 
--- Policy: Everyone can view site_settings
-CREATE POLICY "Allow public read access on site_settings"
-  ON site_settings
-  FOR SELECT
-  USING (true);
-
--- Policy: Only Admin can update site_settings
-CREATE POLICY "Allow admin to manage site_settings"
-  ON site_settings
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
+CREATE POLICY "Allow public read access on site_settings" ON site_settings FOR SELECT USING (true);
+CREATE POLICY "Allow admin to manage site_settings" ON site_settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Insert default settings row
 INSERT INTO site_settings (show_games, show_pc_specs, show_gear) 
