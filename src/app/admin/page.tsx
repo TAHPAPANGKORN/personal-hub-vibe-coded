@@ -19,6 +19,7 @@ import { useAdminData } from "@/hooks/useAdminData";
 import { useImageCrop } from "@/hooks/useImageCrop";
 import type { AdminTab, SiteSettings } from "@/types/admin";
 import type { Session } from "@supabase/supabase-js";
+import { Keyboard, Tag, Monitor, Gamepad2, MessageSquare, type LucideIcon } from "lucide-react";
 
 // Pending crop files are lifted up here so they can be set by useImageCrop
 // and consumed by each Tab component upon form submission.
@@ -113,26 +114,54 @@ export default function AdminPage() {
     );
   }
 
-  const tabs: { key: AdminTab; label: string }[] = [
-    { key: "gear",       label: "Manage Gear Items" },
-    { key: "games",      label: "Manage Games & Ranks" },
-    { key: "categories", label: "Manage Categories" },
-    { key: "pc_specs",   label: "Manage PC Build" },
-    { key: "comments",   label: "Manage Comments" },
+  const tabs: { key: AdminTab; label: string; short: string; icon: LucideIcon }[] = [
+    { key: "gear",       label: "Gear Items",    short: "Gear",      icon: Keyboard },
+    { key: "categories", label: "Categories",    short: "Categories", icon: Tag },
+    { key: "pc_specs",   label: "PC Build",      short: "PC Build",  icon: Monitor },
+    { key: "games",      label: "Games & Ranks", short: "Games",     icon: Gamepad2 },
+    { key: "comments",   label: "Comments",      short: "Comments",  icon: MessageSquare },
   ];
 
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto space-y-8 pb-20">
+    <div className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto space-y-6 pb-24 md:pb-12">
 
-      {/* STICKY HEADER */}
-      <div className="flex justify-between items-center bg-zinc-900/80 p-4 rounded-xl border border-zinc-800 backdrop-blur-sm sticky top-4 z-10">
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-sm bg-zinc-800 hover:bg-zinc-700 text-white py-2 px-4 rounded-lg transition-colors border border-zinc-700"
-        >
-          Sign Out
-        </button>
+      {/* STICKY HEADER — contains desktop pill nav */}
+      <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl backdrop-blur-sm sticky top-4 z-10 overflow-hidden">
+        {/* Top row: logo + sign out */}
+        <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-800/60">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.7)]" />
+            <h1 className="text-base font-black text-white tracking-tight">Admin Dashboard</h1>
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white py-1.5 px-3 rounded-lg transition-colors border border-zinc-700"
+          >
+            Sign Out
+          </button>
+        </div>
+
+        {/* DESKTOP pill nav — hidden on mobile (bottom bar used instead) */}
+        <div className="hidden md:flex items-center gap-1 p-2">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+                  isActive
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-900/40"
+                    : "text-zinc-500 hover:text-white hover:bg-zinc-800"
+                }`}
+              >
+                <Icon size={15} strokeWidth={isActive ? 2.5 : 1.8} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* VISIBILITY SETTINGS */}
@@ -173,18 +202,47 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TABS */}
-      <div className="flex space-x-2 border-b border-zinc-800 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`py-3 px-6 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.key ? "border-purple-500 text-purple-400" : "border-transparent text-zinc-500 hover:text-white"}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* MOBILE BOTTOM TAB BAR — fixed to bottom, hidden on md+ */}
+      {/*
+        Trick: position the nav 80px BELOW bottom-0 (off screen),
+        then add those 80px back as paddingBottom.
+        This forces the background to extend beyond the browser chrome,
+        eliminating any gap without affecting visible icon positions.
+      */}
+      <nav
+        className="md:hidden fixed left-0 right-0 z-20 bg-zinc-900 border-t border-zinc-800"
+        style={{
+          bottom: "-80px",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+        }}
+      >
+        <div className="flex items-stretch h-16">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className="flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-150 active:scale-95 relative"
+              >
+                {/* Active indicator line at top */}
+                {isActive && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
+                )}
+                <Icon
+                  size={22}
+                  strokeWidth={isActive ? 2.5 : 1.6}
+                  className={`transition-colors ${isActive ? "text-purple-400" : "text-zinc-600"}`}
+                />
+                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${isActive ? "text-purple-400" : "text-zinc-600"}`}>
+                  {tab.short}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* TAB CONTENT */}
       {activeTab === "gear" && (
