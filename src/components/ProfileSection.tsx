@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Globe } from "lucide-react";
 import { FaYoutube, FaTwitch, FaTwitter, FaInstagram } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { LiveStatus } from "./LiveStatus";
 
 export const ProfileSection = () => {
   return (
@@ -31,9 +32,10 @@ export const ProfileSection = () => {
         <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-500 pb-1 pr-4">
           My Personal Setup
         </h1>
-        <p className="text-zinc-400 text-sm md:text-base max-w-md mx-auto font-medium leading-relaxed">
+        <p className="text-zinc-400 text-sm md:text-base max-w-md mx-auto font-medium leading-relaxed pb-2">
           A curated visual showcase of the tactical hardware, coding arsenal, and peripherals that fuel my daily grind.
         </p>
+        <LiveStatus />
       </motion.div>
 
       <motion.div 

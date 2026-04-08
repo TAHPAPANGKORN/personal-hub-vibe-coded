@@ -3,7 +3,7 @@ import { ProfileSection } from "@/components/ProfileSection";
 import { BentoGrid } from "@/components/BentoGrid";
 import { SetupCard } from "@/components/SetupCard";
 import Image from "next/image";
-import { Gamepad2, Keyboard } from "lucide-react";
+import { Gamepad2, Keyboard, Monitor } from "lucide-react";
 
 export const revalidate = 60; // Revalidate every 60 seconds
 
@@ -46,10 +46,28 @@ async function getCategories() {
   return data || [];
 }
 
+async function getPcSpecs() {
+  const { data, error } = await supabase
+    .from("pc_specs")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) return [];
+  return data || [];
+}
+
+async function getSiteSettings() {
+  const { data, error } = await supabase.from("site_settings").select("*").limit(1).single();
+  if (error || !data) return { show_games: true, show_pc_specs: true, show_gear: true };
+  return data;
+}
+
 export default async function Home() {
   const gearItems = await getGearItems();
   const gamesList = await getGames();
   const categoriesList = await getCategories();
+  const pcSpecsList = await getPcSpecs();
+  const siteSettings = await getSiteSettings();
 
   // Extract unique categories present in gear items
   const uniqueCategories = Array.from(new Set(gearItems.map((item: any) => item.category)));
@@ -70,7 +88,7 @@ export default async function Home() {
       <ProfileSection />
 
       {/* GAMES & RANKS SECTION */}
-      {gamesList.length > 0 && (
+      {siteSettings.show_games && gamesList.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 md:px-8">
           <h2 className="text-xs font-black italic uppercase tracking-widest text-zinc-400 mb-4 flex items-center">
             <Gamepad2 size={16} className="text-white mr-2" /> Current Games & Ranks
@@ -98,11 +116,41 @@ export default async function Home() {
         </section>
       )}
 
+      {/* PC BUILD SECTION (Highlighted) */}
+      {siteSettings.show_pc_specs && pcSpecsList.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 mb-8">
+          <h2 className="text-xs font-black italic uppercase tracking-widest text-zinc-400 mb-6 flex items-center">
+            <Monitor size={16} className="text-purple-400 mr-2" /> Core System Specs
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pcSpecsList.map((pc: any) => (
+              <div key={pc.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl flex items-start gap-4 hover:border-purple-500/30 hover:bg-zinc-800/50 transition-colors group">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 bg-black/40 border border-zinc-800 rounded-xl relative overflow-hidden flex items-center justify-center p-2 group-hover:bg-purple-500/10 transition-colors">
+                  {pc.image_url ? (
+                    <Image src={pc.image_url} alt={pc.name} fill className="object-cover p-0" sizes="48px" />
+                  ) : (
+                    <span className="text-[10px] font-black text-zinc-600 block text-center uppercase tracking-tighter leading-tight">{pc.component_type}</span>
+                  )}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <span className="inline-block px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-[9px] uppercase tracking-wider font-bold text-purple-400 rounded-full mb-1">{pc.component_type}</span>
+                  <h3 className="text-white font-bold text-sm leading-tight mb-1 truncate">{pc.name}</h3>
+                  {pc.specs_detail && (
+                    <p className="text-xs text-zinc-500 truncate">{pc.specs_detail}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* GAMING SETUP SECTION (GROUPED BY CATEGORY) */}
-      <section className="space-y-8">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
+      {siteSettings.show_gear && (
+        <section className="space-y-8">
+          <div className="max-w-7xl mx-auto px-4 md:px-8">
           <h2 className="text-xs font-black italic uppercase tracking-widest text-zinc-400 mb-4 flex items-center">
-            <Keyboard size={16} className="text-white mr-2" /> Gaming Setup
+            <Keyboard size={16} className="text-white mr-2" /> Peripherals & Gear
           </h2>
         </div>
 
@@ -143,8 +191,9 @@ export default async function Home() {
               </div>
             </BentoGrid>
           )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
