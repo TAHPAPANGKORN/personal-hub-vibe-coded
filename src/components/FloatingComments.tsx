@@ -172,7 +172,7 @@ export const FloatingComments = () => {
   };
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 h-[450px]">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
       <AnimatePresence mode="popLayout">
         {activeComments.map((comment) => (
           <FloatingComment

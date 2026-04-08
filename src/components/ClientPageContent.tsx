@@ -137,7 +137,15 @@ export const ClientPageContent = ({
   return (
     <>
       <main className="relative z-10 min-h-screen py-10 md:py-16 space-y-16 md:space-y-24 pb-32">
-        <ProfileSection onlineCount={onlineCount} />
+        {/* HERO SECTION — FloatingComments is scoped inside here via absolute positioning */}
+        <div className="relative overflow-hidden min-h-[420px] md:min-h-[480px]">
+          {/* z-0: comments float behind everything */}
+          {siteSettings?.show_floating_comments !== false && <FloatingComments />}
+          {/* z-10: profile content sits in front of comments */}
+          <div className="relative z-10">
+            <ProfileSection onlineCount={onlineCount} />
+          </div>
+        </div>
 
         {/* GAMES & RANKS SECTION */}
         {siteSettings.show_games && gamesList.length > 0 && (
@@ -265,9 +273,7 @@ export const ClientPageContent = ({
         )}
       </main>
 
-      {siteSettings?.show_floating_comments !== false && (
-        <FloatingComments />
-      )}
+
       {siteSettings?.show_comment_input !== false && (
         <CommentInput siteSettings={siteSettings} />
       )}
