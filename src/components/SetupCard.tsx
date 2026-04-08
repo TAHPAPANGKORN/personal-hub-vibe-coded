@@ -51,7 +51,7 @@ export const SetupCard = ({
             alt={model_name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-110"
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
+            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 250px"
             priority={priority}
           />
         ) : (

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ProfileSection } from "@/components/ProfileSection";
 import { BentoGrid } from "@/components/BentoGrid";
 import { SetupCard } from "@/components/SetupCard";
 import { FocusModal } from "@/components/FocusModal";
+import { FloatingComments } from "@/components/FloatingComments";
+import { CommentInput } from "@/components/CommentInput";
 import Image from "next/image";
 import { Gamepad2, Keyboard, Monitor, Trophy } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -32,45 +34,37 @@ export const ClientPageContent = ({
   const [onlineCount, setOnlineCount] = useState(1);
 
   useEffect(() => {
-    // 1. PRESENCE: Track online users
-    const channel = supabase.channel("online-users");
+    // 1. CONSOLIDATED REAL-TIME: One channel for Presence and all Postgres updates
+    const dashboardChannel = supabase.channel("dashboard_main");
     
-    channel
+    dashboardChannel
+      // Presence (Online Count)
       .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
+        const state = dashboardChannel.presenceState();
         setOnlineCount(Object.keys(state).length);
       })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await channel.track({ online_at: new Date().toISOString() });
-        }
-      });
-
-    // 2. REAL-TIME: Subscribe to updates for Gear and PC Specs
-    const gearSubscription = supabase
-      .channel("gear_realtime")
+      // Gear Updates
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "gear_items" }, (payload) => {
         setGearItems((prev) => prev.map(item => item.id === payload.new.id ? { ...item, ...payload.new } : item));
         if (focusedItem?.id === payload.new.id) {
           setFocusedItem(payload.new);
         }
       })
-      .subscribe();
-
-    const pcSubscription = supabase
-      .channel("pc_realtime")
+      // PC Spec Updates
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pc_specs" }, (payload) => {
         setPcSpecsList((prev) => prev.map(item => item.id === payload.new.id ? { ...item, ...payload.new } : item));
         if (focusedItem?.id === payload.new.id) {
           setFocusedItem(payload.new);
         }
       })
-      .subscribe();
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await dashboardChannel.track({ online_at: new Date().toISOString() });
+        }
+      });
 
     return () => {
-      channel.unsubscribe();
-      gearSubscription.unsubscribe();
-      pcSubscription.unsubscribe();
+      dashboardChannel.unsubscribe();
     };
   }, [focusedItem?.id]);
 
@@ -80,23 +74,24 @@ export const ClientPageContent = ({
     setIsModalOpen(true);
   };
 
-  // Extract unique categories present in gear items
-  const uniqueCategories = Array.from(new Set(gearItems.map((item: any) => item.category)));
-  
-  // Sort those categories based on the database sort_order
-  uniqueCategories.sort((a: any, b: any) => {
-    const aCat = categoriesList.find((c: any) => c.name === a);
-    const bCat = categoriesList.find((c: any) => c.name === b);
-    const aOrder = aCat ? aCat.sort_order : 999;
-    const bOrder = bCat ? bCat.sort_order : 999;
+  // Performance: Memoize unique categories and their order
+  const uniqueCategories = useMemo(() => {
+    const categories = Array.from(new Set(gearItems.map((item: any) => item.category)));
     
-    if (aOrder === bOrder) return a.localeCompare(b);
-    return aOrder - bOrder;
-  });
+    return categories.sort((a: any, b: any) => {
+      const aCat = categoriesList.find((c: any) => c.name === a);
+      const bCat = categoriesList.find((c: any) => c.name === b);
+      const aOrder = aCat ? aCat.sort_order : 999;
+      const bOrder = bCat ? bCat.sort_order : 999;
+      
+      if (aOrder === bOrder) return a.localeCompare(b);
+      return aOrder - bOrder;
+    });
+  }, [gearItems, categoriesList]);
 
   return (
     <>
-      <main className="min-h-screen py-10 md:py-16 space-y-16 md:space-y-24 pb-32">
+      <main className="relative z-10 min-h-screen py-10 md:py-16 space-y-16 md:space-y-24 pb-32">
         <ProfileSection onlineCount={onlineCount} />
 
         {/* GAMES & RANKS SECTION */}
@@ -224,6 +219,9 @@ export const ClientPageContent = ({
           </section>
         )}
       </main>
+
+      <FloatingComments />
+      <CommentInput />
 
       <FocusModal 
         isOpen={isModalOpen} 

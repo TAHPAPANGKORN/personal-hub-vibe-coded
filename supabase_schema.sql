@@ -136,3 +136,27 @@ CREATE POLICY "Allow admin to manage site_settings" ON site_settings FOR ALL TO 
 -- Insert default settings row
 INSERT INTO site_settings (show_games, show_pc_specs, show_gear) 
 VALUES (true, true, true);
+
+
+-- 8. Comments Table (Bullet Comments / Danmaku)
+CREATE TABLE IF NOT EXISTS comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  content TEXT NOT NULL,
+  user_name TEXT DEFAULT 'Vibe Visitor',
+  color TEXT DEFAULT '#A855F7', -- Default purple
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Allow public to read comments" ON comments FOR SELECT USING (true);
+CREATE POLICY "Allow public to post comments" ON comments FOR INSERT WITH CHECK (char_length(content) <= 100);
+CREATE POLICY "Allow admin to manage comments" ON comments FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Enable Realtime for comments
+ALTER TABLE comments REPLICA IDENTITY FULL;
+-- Ensure the publication exists or add to it
+-- (Note: If your publication is already created, use 'ALTER PUBLICATION supabase_realtime ADD TABLE comments;')
+

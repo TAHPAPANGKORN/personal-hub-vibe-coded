@@ -6,7 +6,7 @@ export const revalidate = 60; // Revalidate every 60 seconds
 async function getGearItems() {
   const { data, error } = await supabase
     .from("gear_items")
-    .select("*")
+    .select("id, category, model_name, brand, image_url, affiliate_link, description, likes, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error) return [];
@@ -16,7 +16,7 @@ async function getGearItems() {
 async function getGames() {
   const { data, error } = await supabase
     .from("games")
-    .select("*")
+    .select("id, name, rank, image_url")
     .order("sort_order", { ascending: true });
 
   if (error) return [];
@@ -26,7 +26,7 @@ async function getGames() {
 async function getCategories() {
   const { data, error } = await supabase
     .from("categories")
-    .select("*")
+    .select("id, name, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error) return [];
@@ -36,7 +36,7 @@ async function getCategories() {
 async function getPcSpecs() {
   const { data, error } = await supabase
     .from("pc_specs")
-    .select("*")
+    .select("id, component_type, name, brand, specs_detail, image_url, description, likes, sort_order")
     .order("sort_order", { ascending: true });
 
   if (error) return [];
@@ -44,7 +44,7 @@ async function getPcSpecs() {
 }
 
 async function getSiteSettings() {
-  const { data, error } = await supabase.from("site_settings").select("*").limit(1).single();
+  const { data, error } = await supabase.from("site_settings").select("show_games, show_pc_specs, show_gear").limit(1).single();
   if (error || !data) return { show_games: true, show_pc_specs: true, show_gear: true };
   return data;
 }

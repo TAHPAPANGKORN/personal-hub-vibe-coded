@@ -14,16 +14,18 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
 
   // TABS
-  const [activeTab, setActiveTab] = useState<"gear" | "categories" | "games" | "pc_specs">("gear");
+  const [activeTab, setActiveTab] = useState<"gear" | "categories" | "games" | "pc_specs" | "comments">("gear");
 
   // DATA STATES
   const [items, setItems] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [gamesList, setGamesList] = useState<any[]>([]);
   const [pcSpecs, setPcSpecs] = useState<any[]>([]);
+  const [commentsList, setCommentsList] = useState<any[]>([]);
   const [siteSettings, setSiteSettings] = useState<any>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [fetchingData, setFetchingData] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // GEAR FORM STATES
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -86,29 +88,36 @@ export default function AdminPage() {
     // Fetch Gear 
     const { data: gearData } = await supabase
       .from("gear_items")
-      .select("*")
+      .select("id, category, model_name, brand, image_url, affiliate_link, description, likes, sort_order")
       .order("sort_order", { ascending: true });
       
     // Fetch Categories
     const { data: catData } = await supabase
       .from("categories")
-      .select("*")
+      .select("id, name, sort_order")
       .order("sort_order", { ascending: true });
 
     // Fetch Games
-    const { data: pcData } = await supabase.from("pc_specs").select("*").order("sort_order", { ascending: true });
+    const { data: pcData } = await supabase.from("pc_specs").select("id, component_type, name, brand, specs_detail, image_url, description, likes, sort_order").order("sort_order", { ascending: true });
 
     const { data: gameData } = await supabase
       .from("games")
-      .select("*")
+      .select("id, name, rank, image_url")
       .order("sort_order", { ascending: true });
+
+    // Fetch Comments
+    const { data: commentData } = await supabase
+      .from("comments")
+      .select("id, content, user_name, color, device_info, created_at")
+      .order("created_at", { ascending: false });
 
     setItems(gearData || []);
     setCategoriesList(catData || []);
     setGamesList(gameData || []);
     setPcSpecs(pcData || []);
+    setCommentsList(commentData || []);
 
-    const { data: settingsData } = await supabase.from("site_settings").select("*").limit(1).single();
+    const { data: settingsData } = await supabase.from("site_settings").select("show_games, show_pc_specs, show_gear").limit(1).single();
     if (settingsData) {
       setSiteSettings(settingsData);
     } else {
@@ -179,11 +188,13 @@ export default function AdminPage() {
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    setDeletingId(id);
     const { error } = await supabase.from("gear_items").delete().eq("id", id);
     if (!error) {
-      fetchData();
+      await fetchData();
       if (editingId === id) resetForm();
     }
+    setDeletingId(null);
   };
 
   const handleAddItem = async (e: React.FormEvent) => {
@@ -263,11 +274,13 @@ export default function AdminPage() {
     }
 
     if (!confirm(`Are you sure you want to delete the category "${name}"?`)) return;
+    setDeletingId(id);
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (!error) {
-      fetchData();
+      await fetchData();
       if (editingCatId === id) resetCatForm();
     }
+    setDeletingId(null);
   };
 
   const handleAddCategory = async (e: React.FormEvent) => {
@@ -322,11 +335,13 @@ export default function AdminPage() {
 
   const handleDeleteGame = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    setDeletingId(id);
     const { error } = await supabase.from("games").delete().eq("id", id);
     if (!error) {
-      fetchData();
+      await fetchData();
       if (editingGameId === id) resetGameForm();
     }
+    setDeletingId(null);
   };
 
   const handleAddGame = async (e: React.FormEvent) => {
@@ -409,11 +424,13 @@ export default function AdminPage() {
 
   const handleDeletePc = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    setDeletingId(id);
     const { error } = await supabase.from("pc_specs").delete().eq("id", id);
     if (!error) {
-      fetchData();
+      await fetchData();
       if (editingPcId === id) resetPcForm();
     }
+    setDeletingId(null);
   };
 
   const handleAddPc = async (e: React.FormEvent) => {
@@ -564,6 +581,22 @@ export default function AdminPage() {
     await Promise.all(updates);
   };
 
+  const handleDeleteComment = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+    setDeletingId(id);
+    const { error } = await supabase.from("comments").delete().eq("id", id);
+    if (error) alert(error.message);
+    else await fetchData();
+    setDeletingId(null);
+  };
+
+  const handleDeleteAllComments = async () => {
+    if (!confirm("⚠️ DANGER: This will delete ALL comments. Proceed?")) return;
+    const { error } = await supabase.from("comments").delete().neq("id", "00000000-0000-0000-0000-000000000000"); // Standard way to delete all
+    if (error) alert(error.message);
+    else fetchData();
+  };
+
 
   // --- RENDERING ---
 
@@ -683,6 +716,13 @@ export default function AdminPage() {
           className={`py-3 px-6 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === 'pc_specs' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'}`}
         >
           Manage PC Build
+        </button>
+
+        <button 
+          onClick={() => setActiveTab("comments")}
+          className={`py-3 px-6 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === 'comments' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'}`}
+        >
+          Manage Comments
         </button>
       </div>
 
@@ -1351,6 +1391,65 @@ export default function AdminPage() {
                     )}
                   </Droppable>
                 </DragDropContext>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "comments" && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="flex justify-between items-center px-2">
+            <div>
+              <h2 className="text-xl font-bold text-white">Guestbook Vibes</h2>
+              <p className="text-xs text-zinc-500 mt-1">Real-time bullet comments from your visitors</p>
+            </div>
+            <button 
+              onClick={handleDeleteAllComments}
+              className="px-4 py-2 bg-red-950/30 text-red-400 border border-red-900/30 rounded-xl text-xs font-bold hover:bg-red-900/50 transition-all"
+            >
+              Clear All Comments
+            </button>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+            {commentsList.length === 0 ? (
+              <div className="text-zinc-500 text-center py-12">No vibes yet. Be the first to post something!</div>
+            ) : (
+              <div className="divide-y divide-zinc-800">
+                {commentsList.map((comment) => (
+                  <div key={comment.id} className="p-4 flex items-center justify-between group hover:bg-white/[0.02] transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div 
+                        className="w-10 h-10 rounded-full flex items-center justify-center font-black text-xs text-white shadow-lg"
+                        style={{ backgroundColor: comment.color || '#A855F7' }}
+                      >
+                        {comment.user_name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{comment.user_name}</span>
+                          {comment.device_info && (
+                            <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">
+                              {comment.device_info}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-zinc-500 font-medium">
+                            {new Date(comment.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-zinc-300 text-sm mt-0.5">{comment.content}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="p-2 text-zinc-500 hover:text-red-400 bg-transparent hover:bg-red-950/30 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete Comment"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

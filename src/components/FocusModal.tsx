@@ -43,17 +43,17 @@ export const FocusModal = ({ isOpen, onClose, item, type }: FocusModalProps) => 
       const likedItems = JSON.parse(localStorage.getItem("hyped_items") || "[]");
       localStorage.setItem("hyped_items", JSON.stringify([...likedItems, item.id]));
 
-      // Update Database
-      const { error } = await supabase
-        .from(tableName)
-        .update({ likes: newLikes })
-        .eq("id", item.id);
+      // Update Database using Secure RPC
+      const { error } = await supabase.rpc("increment_hype", {
+        row_id: item.id,
+        table_name: tableName,
+      });
 
       if (error) {
         // Rollback if DB fails
         setLikes(likes);
         setHasLiked(false);
-        console.error("Error hyping item in DB:", error);
+        console.error("Error hyping item via RPC:", error);
       }
     } catch (err) {
       console.error("Error hyping item:", err);
