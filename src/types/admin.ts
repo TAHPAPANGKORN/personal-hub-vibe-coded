@@ -71,8 +71,19 @@ export interface SiteSettings {
   social_twitter: string | null;
   social_instagram: string | null;
   social_website: string | null;
+  setup_main_image_url: string | null;
+  show_setup_visual: boolean;
 }
 
-export type AdminTab = "profile" | "gear" | "categories" | "games" | "pc_specs" | "comments";
-export type CropType = "gear" | "game" | "pc" | "profile";
+export interface Hotspot {
+  id: string;
+  gear_id: string | null;
+  pc_id: string | null;
+  x_percent: number;
+  y_percent: number;
+  created_at: string;
+}
+
+export type AdminTab = "profile" | "gear" | "categories" | "games" | "pc_specs" | "comments" | "setup_visual";
+export type CropType = "gear" | "game" | "pc" | "profile" | "setup";
 export type FocusType = "gear" | "pc";

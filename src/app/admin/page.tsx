@@ -18,9 +18,10 @@ import { CategoriesTab } from "@/components/admin/CategoriesTab";
 import { CommentsTab } from "@/components/admin/CommentsTab";
 import { useAdminData } from "@/hooks/useAdminData";
 import { useImageCrop } from "@/hooks/useImageCrop";
+import { SetupVisualTab } from "@/components/admin/SetupVisualTab";
 import type { AdminTab, SiteSettings } from "@/types/admin";
 import type { Session } from "@supabase/supabase-js";
-import { User, Keyboard, Tag, Monitor, Gamepad2, MessageSquare, type LucideIcon } from "lucide-react";
+import { User, Keyboard, Tag, Monitor, Gamepad2, MessageSquare, Sparkles, type LucideIcon } from "lucide-react";
 
 // Pending crop files are lifted up here so they can be set by useImageCrop
 // and consumed by each Tab component upon form submission.
@@ -36,6 +37,7 @@ export default function AdminPage() {
   const [pendingGameFile, setPendingGameFile] = useState<File | null>(null);
   const [pendingPcFile, setPendingPcFile] = useState<File | null>(null);
   const [pendingProfileFile, setPendingProfileFile] = useState<File | null>(null);
+  const [pendingSetupFile, setPendingSetupFile] = useState<File | null>(null);
 
   // ── Data ──────────────────────────────────────────────────
   const adminData = useAdminData(
@@ -50,6 +52,7 @@ export default function AdminPage() {
       onGameCropDone:    (file) => { setPendingGameFile(file); },
       onPcCropDone:      (file) => { setPendingPcFile(file); },
       onProfileCropDone: (file) => { setPendingProfileFile(file); },
+      onSetupCropDone:   (file) => { setPendingSetupFile(file); },
     });
 
   // ── Auth ──────────────────────────────────────────────────
@@ -123,6 +126,7 @@ export default function AdminPage() {
     { key: "gear",       label: "Gear Items",    short: "Gear",       icon: Keyboard },
     { key: "categories", label: "Categories",    short: "Categories", icon: Tag },
     { key: "pc_specs",   label: "PC Build",      short: "PC Build",   icon: Monitor },
+    { key: "setup_visual", label: "Setup Visual", short: "Visual",    icon: Sparkles },
     { key: "games",      label: "Games & Ranks", short: "Games",      icon: Gamepad2 },
     { key: "comments",   label: "Comments",      short: "Comments",   icon: MessageSquare },
   ];
@@ -147,7 +151,7 @@ export default function AdminPage() {
         </div>
 
         {/* DESKTOP pill nav — hidden on mobile (bottom bar used instead) */}
-        <div className="hidden md:flex items-center gap-1 p-2">
+        <div className="hidden md:flex items-center gap-1 p-1.5 overflow-x-auto no-scrollbar">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -155,13 +159,13 @@ export default function AdminPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap shrink-0 h-10 ${
                   isActive
-                    ? "bg-purple-600 text-white shadow-md shadow-purple-900/40"
-                    : "text-zinc-500 hover:text-white hover:bg-zinc-800"
+                    ? "bg-purple-600 text-white shadow-lg shadow-purple-900/30"
+                    : "text-zinc-500 hover:text-white hover:bg-zinc-800/50"
                 }`}
               >
-                <Icon size={15} strokeWidth={isActive ? 2.5 : 1.8} />
+                <Icon size={14} strokeWidth={isActive ? 3 : 2} className="shrink-0" />
                 {tab.label}
               </button>
             );
@@ -186,6 +190,7 @@ export default function AdminPage() {
               { label: "PC Specs", field: "show_pc_specs" as keyof SiteSettings },
               { label: "Gear & Tech", field: "show_gear" as keyof SiteSettings },
               { label: "Games & Rank", field: "show_games" as keyof SiteSettings },
+              { label: "Interactive Setup", field: "show_setup_visual" as keyof SiteSettings },
             ].map(setting => {
               const active = adminData.siteSettings![setting.field] !== false;
               return (
@@ -310,6 +315,19 @@ export default function AdminPage() {
           setPendingPcFile={setPendingPcFile}
         />
       )}
+      {activeTab === "setup_visual" && (
+        <SetupVisualTab
+          siteSettings={adminData.siteSettings}
+          hotspots={adminData.hotspots}
+          gearItems={adminData.items}
+          pcSpecs={adminData.pcSpecs}
+          fetchingData={adminData.fetchingData}
+          onRefetch={adminData.refetch}
+          onFileChangeForCrop={handleFileChangeForCrop}
+          pendingSetupFile={pendingSetupFile}
+          setPendingSetupFile={setPendingSetupFile}
+        />
+      )}
       {activeTab === "comments" && (
         <CommentsTab
           commentsList={adminData.commentsList}
@@ -330,7 +348,7 @@ export default function AdminPage() {
           imageSrc={imageToCrop}
           onClose={closeCropModal}
           onCropComplete={onCropCompleteHandler}
-          aspect={1}
+          aspect={activeCropType === "setup" ? 16 / 9 : 1}
           title={`Adjust ${activeCropType?.toUpperCase()} Image`}
         />
       )}

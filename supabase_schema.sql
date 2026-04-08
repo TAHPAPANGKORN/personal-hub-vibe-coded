@@ -1,19 +1,10 @@
 -- ==========================================
 -- DESK SETUP DASHBOARD: CONSOLIDATED SCHEMA
--- Version: Latest (Hardened Security + GPS + Master Controls)
+-- Version: 2.0 (Hotspot Pro + Visual Toggles + Enhanced Comments)
 -- ==========================================
 
--- 1. STORAGE SETUP
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('gear_images', 'gear_images', true)
-ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
-DROP POLICY IF EXISTS "Admin Upload Access" ON storage.objects;
-
-CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING ( bucket_id = 'gear_images' );
-CREATE POLICY "Admin Upload Access" ON storage.objects FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'gear_images' );
-
+-- 1. STORAGE SETUP (Optional: ensure buckets exist)
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('gear_images', 'gear_images', true) ON CONFLICT (id) DO NOTHING;
 
 -- 2. CATEGORIES TABLE
 CREATE TABLE IF NOT EXISTS categories (
@@ -27,11 +18,6 @@ CREATE TABLE IF NOT EXISTS categories (
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on categories" ON categories FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage categories" ON categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-INSERT INTO categories (name, sort_order) VALUES
-('Keyboard', 1), ('Mouse', 2), ('Monitor', 3), ('Audio', 4)
-ON CONFLICT (name) DO NOTHING;
-
 
 -- 3. GEAR ITEMS TABLE
 CREATE TABLE IF NOT EXISTS gear_items (
@@ -49,9 +35,8 @@ CREATE TABLE IF NOT EXISTS gear_items (
 );
 
 ALTER TABLE gear_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read access" ON gear_items FOR SELECT USING (true);
+CREATE POLICY "Allow public read access on gear_items" ON gear_items FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage gear_items" ON gear_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
 
 -- 4. GAMES TABLE
 CREATE TABLE IF NOT EXISTS games (
@@ -67,7 +52,6 @@ CREATE TABLE IF NOT EXISTS games (
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on games" ON games FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage games" ON games FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
 
 -- 5. PC SPECS TABLE
 CREATE TABLE IF NOT EXISTS pc_specs (
@@ -88,7 +72,6 @@ ALTER TABLE pc_specs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on pc_specs" ON pc_specs FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage pc_specs" ON pc_specs FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-
 -- 6. SITE SETTINGS TABLE (Master Toggles + Profile)
 CREATE TABLE IF NOT EXISTS site_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -98,16 +81,18 @@ CREATE TABLE IF NOT EXISTS site_settings (
   show_gear BOOLEAN DEFAULT true,
   show_floating_comments BOOLEAN DEFAULT true,
   show_comment_input BOOLEAN DEFAULT true,
+  show_setup_visual BOOLEAN DEFAULT true,
   enable_gps BOOLEAN DEFAULT true,
   -- Profile fields
   profile_title TEXT DEFAULT 'My Personal Setup',
-  profile_description TEXT DEFAULT 'A curated visual showcase of the tactical hardware, coding arsenal, and peripherals that fuel my daily grind.',
+  profile_description TEXT DEFAULT 'A curated visual showcase of the tactical hardware...',
   profile_image_url TEXT DEFAULT NULL,
-  social_youtube TEXT DEFAULT 'https://www.youtube.com/@tah2832#',
-  social_twitch TEXT DEFAULT 'https://www.twitch.tv/tahaiiya01',
-  social_twitter TEXT DEFAULT 'https://x.com/PapangkornPj',
-  social_instagram TEXT DEFAULT 'https://www.instagram.com/xfattahz/',
-  social_website TEXT DEFAULT 'https://www.papangkorn.info',
+  social_youtube TEXT DEFAULT NULL,
+  social_twitch TEXT DEFAULT NULL,
+  social_twitter TEXT DEFAULT NULL,
+  social_instagram TEXT DEFAULT NULL,
+  social_website TEXT DEFAULT NULL,
+  setup_main_image_url TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -115,35 +100,18 @@ ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on site_settings" ON site_settings FOR SELECT USING (true);
 CREATE POLICY "Allow admin to manage site_settings" ON site_settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-INSERT INTO site_settings (
-  id, 
-  show_games, show_pc_specs, show_gear, show_floating_comments, show_comment_input, enable_gps,
-  profile_title, profile_description, social_youtube, social_twitch, social_twitter, social_instagram, social_website
-) 
-VALUES (
-  '00000000-0000-0000-0000-000000000001', 
-  true, true, true, true, true, true,
-  'My Personal Setup', 
-  'A curated visual showcase of the tactical hardware, coding arsenal, and peripherals that fuel my daily grind.',
-  'https://www.youtube.com/@tah2832#',
-  'https://www.twitch.tv/tahaiiya01',
-  'https://x.com/mogutan41181592',
-  'https://www.instagram.com/xfattahz/',
-  'https://www.papangkorn.info'
-)
+-- Ensure default settings exist
+INSERT INTO site_settings (id) 
+VALUES ('00000000-0000-0000-0000-000000000001') 
 ON CONFLICT (id) DO NOTHING;
 
-
--- 7. COMMENTS TABLE (Enhanced tracking)
+-- 7. COMMENTS TABLE
 CREATE TABLE IF NOT EXISTS comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   content TEXT NOT NULL,
-  user_name TEXT DEFAULT 'Vibe Visitor',
-  color TEXT DEFAULT '#A855F7',
-  device_info TEXT,
-  location TEXT DEFAULT 'Unknown',
-  latitude TEXT,
-  longitude TEXT,
+  author_name TEXT DEFAULT 'Anonymous',
+  x_pos INTEGER DEFAULT 50,
+  y_pos INTEGER DEFAULT 50,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -152,8 +120,25 @@ CREATE POLICY "Allow public to read comments" ON comments FOR SELECT USING (true
 CREATE POLICY "Allow public to post comments" ON comments FOR INSERT WITH CHECK (char_length(content) <= 100);
 CREATE POLICY "Allow admin to manage comments" ON comments FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- 8. HOTSPOTS TABLE
+CREATE TABLE IF NOT EXISTS hotspots (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  gear_id UUID REFERENCES gear_items(id) ON DELETE CASCADE,
+  pc_id UUID REFERENCES pc_specs(id) ON DELETE CASCADE,
+  x_percent FLOAT NOT NULL,
+  y_percent FLOAT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT one_target_only CHECK (
+    (gear_id IS NOT NULL AND pc_id IS NULL) OR 
+    (gear_id IS NULL AND pc_id IS NOT NULL)
+  )
+);
 
--- 8. SECURITY FUNCTIONS (Atomic Increment)
+ALTER TABLE hotspots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on hotspots" ON hotspots FOR SELECT USING (true);
+CREATE POLICY "Allow admin to manage hotspots" ON hotspots FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 9. SECURITY FUNCTIONS (Atomic Increment)
 CREATE OR REPLACE FUNCTION increment_hype(row_id uuid, table_name text)
 RETURNS void AS $$
 BEGIN
@@ -167,14 +152,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION increment_hype(uuid, text) TO anon, authenticated;
 
-
--- 9. REALTIME CONFIGURATION
--- Force replica identity for full real-time payload updates
-ALTER TABLE gear_items REPLICA IDENTITY FULL;
-ALTER TABLE pc_specs REPLICA IDENTITY FULL;
-ALTER TABLE site_settings REPLICA IDENTITY FULL;
-ALTER TABLE comments REPLICA IDENTITY FULL;
-
--- Ensure all tables are in the publication
--- Use try-catch style via SQL editor if possible, or run manually:
--- ALTER PUBLICATION supabase_realtime ADD TABLE gear_items, pc_specs, site_settings, comments;
+-- 10. REALTIME CONFIGURATION
+-- Run these in the Supabase SQL editor to enable real-time features:
+-- ALTER PUBLICATION supabase_realtime ADD TABLE gear_items, pc_specs, site_settings, comments, hotspots;

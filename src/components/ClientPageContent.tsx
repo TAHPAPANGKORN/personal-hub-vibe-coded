@@ -7,6 +7,7 @@ import { SetupCard } from "@/components/SetupCard";
 import { FocusModal } from "@/components/FocusModal";
 import { FloatingComments } from "@/components/FloatingComments";
 import { CommentInput } from "@/components/CommentInput";
+import { InteractiveHero } from "@/components/InteractiveHero";
 import Image from "next/image";
 import { Gamepad2, Keyboard, Monitor, Trophy } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +17,7 @@ interface ClientPageContentProps {
   gamesList: any[];
   categoriesList: any[];
   pcSpecsList: any[];
+  hotspots: any[];
   siteSettings: any;
 }
 
@@ -24,10 +26,12 @@ export const ClientPageContent = ({
   gamesList,
   categoriesList,
   pcSpecsList: initialPcSpecsList,
+  hotspots: initialHotspots,
   siteSettings: initialSiteSettings
 }: ClientPageContentProps) => {
   const [gearItems, setGearItems] = useState(initialGearItems);
   const [pcSpecsList, setPcSpecsList] = useState(initialPcSpecsList);
+  const [hotspots, setHotspots] = useState(initialHotspots);
   const [siteSettings, setSiteSettings] = useState(initialSiteSettings);
   const [focusedItem, setFocusedItem] = useState<any>(null);
   const [focusedType, setFocusedType] = useState<"gear" | "pc">("gear");
@@ -97,6 +101,15 @@ export const ClientPageContent = ({
       // SITE SETTINGS Updates
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "site_settings" }, (payload) => {
         setSiteSettings(payload.new);
+      })
+      // Hotspot Updates (Fetch fresh hotspots on any change)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "hotspots" }, async () => {
+        const { data } = await supabase.from("hotspots").select("*").order("created_at", { ascending: true });
+        if (data) setHotspots(data);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "hotspots" }, async () => {
+        const { data } = await supabase.from("hotspots").select("*").order("created_at", { ascending: true });
+        if (data) setHotspots(data);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
@@ -180,6 +193,40 @@ export const ClientPageContent = ({
             </div>
           </section>
         )}
+
+        {/* INTERACTIVE SETUP SECTION: THE COMMAND CENTER */}
+        {siteSettings.show_setup_visual !== false && siteSettings.setup_main_image_url && (
+          <section className="relative w-full">
+            {/* Background Glow Bleed - Desktop Only */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-purple-600/10 blur-[120px] -z-10 pointer-events-none hidden md:block" />
+            
+            <div className="max-w-7xl mx-auto px-4 md:px-8 mb-12">
+               <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-[2px] w-8 md:w-16 bg-gradient-to-r from-transparent to-purple-500" />
+                    <div className="p-3 bg-zinc-900 border border-purple-500/20 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.15)] relative group">
+                       <div className="absolute inset-0 bg-purple-500/20 rounded-2xl animate-ping-slow opacity-20" />
+                       <Monitor size={24} className="text-purple-400 relative z-10" />
+                    </div>
+                    <div className="h-[2px] w-8 md:w-16 bg-gradient-to-l from-transparent to-purple-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl md:text-3xl font-black italic uppercase tracking-[0.2em] text-white">Interactive Zone</h2>
+                    <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.4em] text-zinc-500 mt-2">Interactive Hardware Ecosystem Mapping</p>
+                  </div>
+               </div>
+            </div>
+
+            <InteractiveHero 
+              imageUrl={siteSettings.setup_main_image_url}
+              hotspots={hotspots}
+              gearItems={gearItems}
+              pcSpecs={pcSpecsList}
+              onOpenFocus={openFocus}
+            />
+          </section>
+        )}
+
 
         {/* PC BUILD SECTION */}
         {siteSettings.show_pc_specs && pcSpecsList.length > 0 && (

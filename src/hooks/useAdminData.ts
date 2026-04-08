@@ -12,6 +12,7 @@ import type {
   GameItem,
   PcSpec,
   Comment,
+  Hotspot,
   SiteSettings,
 } from "@/types/admin";
 
@@ -21,6 +22,7 @@ interface AdminData {
   gamesList: GameItem[];
   pcSpecs: PcSpec[];
   commentsList: Comment[];
+  hotspots: Hotspot[];
   siteSettings: SiteSettings | null;
   fetchingData: boolean;
   savingSettings: boolean;
@@ -33,6 +35,7 @@ interface AdminDataActions {
   setCategoriesList: React.Dispatch<React.SetStateAction<Category[]>>;
   setGamesList: React.Dispatch<React.SetStateAction<GameItem[]>>;
   setPcSpecs: React.Dispatch<React.SetStateAction<PcSpec[]>>;
+  setHotspots: React.Dispatch<React.SetStateAction<Hotspot[]>>;
   setSiteSettings: React.Dispatch<React.SetStateAction<SiteSettings | null>>;
   setDeletingId: React.Dispatch<React.SetStateAction<string | null>>;
   handleToggleSetting: (field: keyof SiteSettings, value: boolean) => Promise<void>;
@@ -44,6 +47,7 @@ export function useAdminData(defaultCategoryCallback?: (name: string) => void): 
   const [gamesList, setGamesList] = useState<GameItem[]>([]);
   const [pcSpecs, setPcSpecs] = useState<PcSpec[]>([]);
   const [commentsList, setCommentsList] = useState<Comment[]>([]);
+  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [fetchingData, setFetchingData] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -52,7 +56,7 @@ export function useAdminData(defaultCategoryCallback?: (name: string) => void): 
   const refetch = useCallback(async () => {
     setFetchingData(true);
 
-    const [gearRes, catRes, pcRes, gameRes, commentRes, settingsRes] = await Promise.all([
+    const [gearRes, catRes, pcRes, gameRes, commentRes, hotspotRes, settingsRes] = await Promise.all([
       supabase
         .from("gear_items")
         .select("id, category, model_name, brand, image_url, affiliate_link, description, likes, sort_order")
@@ -74,6 +78,10 @@ export function useAdminData(defaultCategoryCallback?: (name: string) => void): 
         .select("id, content, user_name, color, device_info, location, latitude, longitude, created_at")
         .order("created_at", { ascending: false }),
       supabase
+        .from("hotspots")
+        .select("*")
+        .order("created_at", { ascending: true }),
+      supabase
         .from("site_settings")
         .select("*")
         .limit(1)
@@ -85,6 +93,7 @@ export function useAdminData(defaultCategoryCallback?: (name: string) => void): 
     setPcSpecs((pcRes.data as PcSpec[]) || []);
     setGamesList((gameRes.data as GameItem[]) || []);
     setCommentsList((commentRes.data as Comment[]) || []);
+    setHotspots((hotspotRes.data as Hotspot[]) || []);
 
     if (settingsRes.data) {
       setSiteSettings(settingsRes.data as SiteSettings);
@@ -123,9 +132,9 @@ export function useAdminData(defaultCategoryCallback?: (name: string) => void): 
   }, [siteSettings]);
 
   return {
-    items, categoriesList, gamesList, pcSpecs, commentsList, siteSettings,
+    items, categoriesList, gamesList, pcSpecs, commentsList, hotspots, siteSettings,
     fetchingData, savingSettings, deletingId,
-    refetch, setItems, setCategoriesList, setGamesList, setPcSpecs, setSiteSettings, setDeletingId,
+    refetch, setItems, setCategoriesList, setGamesList, setPcSpecs, setHotspots, setSiteSettings, setDeletingId,
     handleToggleSetting,
   };
 }

@@ -43,6 +43,16 @@ async function getPcSpecs() {
   return data || [];
 }
 
+async function getHotspots() {
+  const { data, error } = await supabase
+    .from("hotspots")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) return [];
+  return data || [];
+}
+
 async function getSiteSettings() {
   const { data, error } = await supabase.from("site_settings").select("*").limit(1).single();
   if (error || !data) return { 
@@ -61,6 +71,7 @@ export default async function Home() {
   const gamesList = await getGames();
   const categoriesList = await getCategories();
   const pcSpecsList = await getPcSpecs();
+  const hotspots = await getHotspots();
   const siteSettings = await getSiteSettings();
 
   return (
@@ -69,6 +80,7 @@ export default async function Home() {
       gamesList={gamesList}
       categoriesList={categoriesList}
       pcSpecsList={pcSpecsList}
+      hotspots={hotspots}
       siteSettings={siteSettings}
     />
   );

@@ -12,9 +12,10 @@ interface UseImageCropProps {
   onGameCropDone: (file: File) => void;
   onPcCropDone: (file: File) => void;
   onProfileCropDone: (file: File) => void;
+  onSetupCropDone: (file: File) => void;
 }
 
-export function useImageCrop({ onGearCropDone, onGameCropDone, onPcCropDone, onProfileCropDone }: UseImageCropProps) {
+export function useImageCrop({ onGearCropDone, onGameCropDone, onPcCropDone, onProfileCropDone, onSetupCropDone }: UseImageCropProps) {
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [activeCropType, setActiveCropType] = useState<CropType | null>(null);
@@ -43,6 +44,7 @@ export function useImageCrop({ onGearCropDone, onGameCropDone, onPcCropDone, onP
       else if (activeCropType === "game") onGameCropDone(file);
       else if (activeCropType === "pc") onPcCropDone(file);
       else if (activeCropType === "profile") onProfileCropDone(file);
+      else if (activeCropType === "setup") onSetupCropDone(file);
 
       setCropModalOpen(false);
       setImageToCrop(null);
