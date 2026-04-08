@@ -48,13 +48,13 @@ const FloatingComment = ({ instanceId, content, userName, color, lane, onComplet
         style={{ borderColor: `${color}33` }}
       >
         <span 
-          className="text-[11px] font-black uppercase tracking-[0.15em] leading-[1] mt-[1px]" 
+          className="text-[13px] font-black uppercase tracking-[0.15em] leading-[1] mt-[1px]" 
           style={{ color }}
         >
           {userName}
         </span>
-        <div className="w-[1px] h-3 bg-white/10" /> {/* Divider for better alignment */}
-        <span className="text-sm font-bold text-white leading-[1] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        <div className="w-[1px] h-4 bg-white/10" /> {/* Divider for better alignment */}
+        <span className="text-base font-bold text-white leading-[1] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
           {content}
         </span>
       </div>

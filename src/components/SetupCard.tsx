@@ -82,14 +82,14 @@ export const SetupCard = ({
 
       {/* Text Container */}
       <div className="flex flex-col px-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-0.5">
+        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">
           {category}
         </span>
-        <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-purple-400 transition-colors">
+        <h3 className="text-base font-bold text-white line-clamp-1 group-hover:text-purple-400 transition-colors">
           {model_name}
         </h3>
         {brand && brand.toLowerCase() !== model_name.toLowerCase() && (
-          <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">{brand}</p>
+          <p className="text-sm text-zinc-400 line-clamp-1 mt-0.5">{brand}</p>
         )}
       </div>
     </motion.div>

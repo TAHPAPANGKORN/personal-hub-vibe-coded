@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import Image from "next/image";
-import { Pencil, Trash2, ImageIcon, GripVertical, Globe, MapPin } from "lucide-react";
+import { Pencil, Trash2, ImageIcon, GripVertical, Globe, MapPin, Monitor, Smartphone, Calendar, MessageSquare, ShieldCheck, ChevronRight } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 export default function AdminPage() {
@@ -26,6 +26,10 @@ export default function AdminPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [fetchingData, setFetchingData] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedComments, setSelectedComments] = useState<string[]>([]);
+  const [commentSearch, setCommentSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("");
 
   // GEAR FORM STATES
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -614,6 +618,39 @@ export default function AdminPage() {
     else fetchData();
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedComments.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedComments.length} selected comments?`)) return;
+    
+    setFetchingData(true);
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .in("id", selectedComments);
+
+    if (error) {
+      alert(`Error deleting selected comments: ${error.message}`);
+    } else {
+      setSelectedComments([]);
+      await fetchData();
+    }
+    setFetchingData(false);
+  };
+
+  const toggleCommentSelection = (id: string) => {
+    setSelectedComments(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllComments = (filteredIds: string[]) => {
+    if (selectedComments.length === filteredIds.length) {
+      setSelectedComments([]);
+    } else {
+      setSelectedComments(filteredIds);
+    }
+  };
+
 
   // --- RENDERING ---
 
@@ -707,8 +744,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TABS */}
-      <div className="flex space-x-2 border-b border-zinc-800 overflow-x-auto pb-1">
+      {/* TABS (Horizontally Scrollable on Mobile) */}
+      <div className="flex space-x-2 border-b border-zinc-800 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button 
           onClick={() => setActiveTab("gear")}
           className={`py-3 px-6 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === 'gear' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'}`}
@@ -935,9 +972,9 @@ export default function AdminPage() {
                                       <div 
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
-                                        className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col justify-between group hover:border-zinc-700 transition-colors"
+                                        className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col gap-4 group hover:border-zinc-700 transition-colors"
                                       >
-                                        <div className="flex gap-4">
+                                        <div className="flex gap-3 md:gap-4 items-start">
                                           <div {...provided.dragHandleProps} className="cursor-grab hover:text-white text-zinc-600 py-4 mr-1 active:cursor-grabbing">
                                             <GripVertical size={20} />
                                           </div>
@@ -948,22 +985,21 @@ export default function AdminPage() {
                                               <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-500">No Img</div>
                                             )}
                                           </div>
-                                          <div>
-                                            <h3 className="text-white font-semibold line-clamp-1">{item.model_name}</h3>
-                                            <p className="text-xs text-zinc-400 line-clamp-1">{item.brand}</p>
+                                          <div className="flex-1 min-w-0">
+                                            <h3 className="text-white font-bold text-sm leading-tight line-clamp-1">{item.model_name}</h3>
+                                            <p className="text-xs text-zinc-500 mt-1">{item.brand}</p>
                                           </div>
                                         </div>
                                         
-                                        <div className="flex items-center justify-between mt-4 md:mt-2 md:pl-10">
-                                          <div></div>
-                                          <div className="flex gap-2">
-                                            <button onClick={() => handleEdit(item)} className="p-2 text-white bg-zinc-800 hover:bg-zinc-700 hover:text-purple-400 rounded-lg transition-colors border border-zinc-700" title="Edit">
-                                              <Pencil size={14} />
-                                            </button>
-                                            <button onClick={() => handleDelete(item.id, item.model_name)} className="p-2 text-red-400 bg-red-950/30 hover:bg-red-900/50 border border-red-900/30 rounded-lg transition-colors" title="Delete">
-                                              <Trash2 size={14} />
-                                            </button>
-                                          </div>
+                                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800/50">
+                                          <button onClick={() => handleEdit(item)} className="flex-1 md:flex-none flex items-center justify-center gap-2 p-2.5 text-white bg-zinc-800 hover:bg-zinc-700 hover:text-purple-400 rounded-lg transition-all border border-zinc-700">
+                                            <Pencil size={14} />
+                                            <span className="md:hidden text-[10px] font-black uppercase tracking-widest">Edit</span>
+                                          </button>
+                                          <button onClick={() => handleDelete(item.id, item.model_name)} className="flex-1 md:flex-none flex items-center justify-center gap-2 p-2.5 text-red-400 bg-red-950/20 hover:bg-red-900/40 border border-red-900/20 rounded-lg transition-all">
+                                            <Trash2 size={14} />
+                                            <span className="md:hidden text-[10px] font-black uppercase tracking-widest">Delete</span>
+                                          </button>
                                         </div>
                                       </div>
                                     )}
@@ -1244,25 +1280,29 @@ export default function AdminPage() {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex items-center justify-between group hover:border-zinc-700 transition-colors"
+                                className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:border-zinc-700 transition-colors"
                               >
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
                                   <div {...provided.dragHandleProps} className="cursor-grab text-zinc-600 hover:text-white mr-1 active:cursor-grabbing">
                                     <GripVertical size={20} />
                                   </div>
-                                  <h3 className="text-white font-medium">{cat.name}</h3>
-                                  {items.filter(i => i.category === cat.name).length > 0 && (
-                                    <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full ml-2">
-                                      {items.filter(i => i.category === cat.name).length} items
-                                    </span>
-                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="text-white font-bold text-sm tracking-tight">{cat.name}</h3>
+                                    {items.filter(i => i.category === cat.name).length > 0 && (
+                                      <span className="text-[9px] font-black uppercase tracking-tighter bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/10 inline-block mt-0.5">
+                                        {items.filter(i => i.category === cat.name).length} items
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex gap-2">
-                                  <button onClick={() => handleEditCat(cat)} className="p-2 text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-purple-400 rounded-lg transition-colors border border-transparent hover:border-zinc-700" title="Edit">
+                                <div className="flex gap-2 w-full sm:w-auto justify-end border-t border-zinc-800 sm:border-0 pt-3 sm:pt-0">
+                                  <button onClick={() => handleEditCat(cat)} className="flex-1 sm:flex-none p-2 text-zinc-400 bg-zinc-800 hover:bg-zinc-700 hover:text-purple-400 rounded-lg transition-colors border border-zinc-700 flex items-center justify-center gap-2">
                                     <Pencil size={14} />
+                                    <span className="sm:hidden text-[10px] font-black uppercase tracking-widest">Edit</span>
                                   </button>
-                                  <button onClick={() => handleDeleteCat(cat.id, cat.name)} className="p-2 text-zinc-500 hover:text-red-400 bg-transparent hover:bg-red-950/30 rounded-lg transition-colors border border-transparent hover:border-red-900/30" title="Delete">
+                                  <button onClick={() => handleDeleteCat(cat.id, cat.name)} className="flex-1 sm:flex-none p-2 text-zinc-500 hover:text-red-400 bg-red-950/20 hover:bg-red-900/40 rounded-lg transition-colors border border-red-900/20 flex items-center justify-center gap-2">
                                     <Trash2 size={14} />
+                                    <span className="sm:hidden text-[10px] font-black uppercase tracking-widest">Delete</span>
                                   </button>
                                 </div>
                               </div>
@@ -1375,29 +1415,35 @@ export default function AdminPage() {
                         {pcSpecs.map((item, index) => (
                           <Draggable key={item.id} draggableId={item.id} index={index}>
                             {(provided) => (
-                              <div ref={provided.innerRef} {...provided.draggableProps} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex items-center justify-between group hover:border-zinc-700 transition-colors">
-                                <div className="flex items-center gap-2">
-                                  <div {...provided.dragHandleProps} className="cursor-grab text-zinc-600 hover:text-white mr-2 active:cursor-grabbing">
+                              <div ref={provided.innerRef} {...provided.draggableProps} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:border-zinc-700 transition-colors">
+                                <div className="flex items-start sm:items-center gap-3 w-full sm:w-auto">
+                                  <div {...provided.dragHandleProps} className="cursor-grab text-zinc-600 hover:text-white pt-2 sm:pt-0 mr-1 active:cursor-grabbing">
                                     <GripVertical size={20} />
                                   </div>
                                   <div className="h-16 w-16 shrink-0 bg-white/5 p-2 rounded-lg border border-zinc-800 relative flex items-center justify-center">
                                     {item.image_url ? (
                                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="64px" />
                                     ) : (
-                                      <span className="text-xs text-zinc-500 font-bold">{item.component_type}</span>
+                                      <span className="text-[10px] text-zinc-600 font-black uppercase text-center">{item.component_type.slice(0,3)}</span>
                                     )}
                                   </div>
-                                  <div className="ml-2">
-                                    <h3 className="text-white font-bold">{item.name}</h3>
-                                    <div className="flex gap-2 items-center text-xs text-zinc-400 mt-1">
-                                      <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full font-bold">{item.component_type}</span>
-                                      {item.specs_detail && <span>• {item.specs_detail}</span>}
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="text-white font-bold text-sm leading-tight">{item.name}</h3>
+                                    <div className="flex flex-wrap gap-2 items-center text-[10px] text-zinc-500 mt-1">
+                                      <span className="bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter border border-purple-500/20">{item.component_type}</span>
+                                      {item.specs_detail && <span className="italic truncate max-w-[150px]">• {item.specs_detail}</span>}
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex gap-2">
-                                  <button onClick={() => handleEditPc(item)} className="p-2 text-white bg-zinc-800 hover:bg-zinc-700 hover:text-purple-400 rounded-lg"><Pencil size={14} /></button>
-                                  <button onClick={() => handleDeletePc(item.id, item.name)} className="p-2 text-red-400 bg-red-950/30 hover:bg-red-900/50 rounded-lg"><Trash2 size={14} /></button>
+                                <div className="flex gap-2 w-full sm:w-auto justify-end border-t border-zinc-800 sm:border-0 pt-3 sm:pt-0">
+                                  <button onClick={() => handleEditPc(item)} className="flex-1 sm:flex-none p-2.5 text-white bg-zinc-800 hover:bg-zinc-700 hover:text-purple-400 rounded-lg transition-all border border-zinc-700 sm:border-transparent flex items-center justify-center gap-2">
+                                    <Pencil size={14} />
+                                    <span className="sm:hidden text-xs font-bold uppercase tracking-widest">Edit</span>
+                                  </button>
+                                  <button onClick={() => handleDeletePc(item.id, item.name)} className="flex-1 sm:flex-none p-2.5 text-red-400 bg-red-950/20 hover:bg-red-900/40 rounded-lg transition-all border border-red-900/20 sm:border-transparent flex items-center justify-center gap-2">
+                                    <Trash2 size={14} />
+                                    <span className="sm:hidden text-xs font-bold uppercase tracking-widest">Delete</span>
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -1414,17 +1460,17 @@ export default function AdminPage() {
       )}
 
       {activeTab === "comments" && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="flex justify-between items-center px-2">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2">
             <div>
-              <h2 className="text-xl font-bold text-white">Guestbook Vibes</h2>
-              <p className="text-xs text-zinc-500 mt-1">Real-time bullet comments from your visitors</p>
+              <h2 className="text-2xl font-black text-white italic tracking-tight">Guestbook Vibes</h2>
+              <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">Real-time moderator dashboard</p>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex flex-wrap items-center gap-4 bg-zinc-900/50 p-3 rounded-2xl border border-zinc-800/50 backdrop-blur-md">
               {[
-                { label: 'Floating Stream', field: 'show_floating_comments', icon: '💬' },
-                { label: 'Allow Posting', field: 'show_comment_input', icon: '✉️' },
-                { label: 'Capture GPS', field: 'enable_gps', icon: '🛰️' },
+                { label: 'Floating', field: 'show_floating_comments', icon: '💬' },
+                { label: 'Submit', field: 'show_comment_input', icon: '✉️' },
+                { label: 'GPS', field: 'enable_gps', icon: '🛰️' },
               ].map(setting => (
                 <label key={setting.field} className="flex items-center gap-2.5 cursor-pointer group select-none">
                   <div className="relative shrink-0 scale-75">
@@ -1438,74 +1484,227 @@ export default function AdminPage() {
                     <div className={`block w-11 h-6 rounded-full transition-all duration-300 ${siteSettings[setting.field] !== false ? 'bg-purple-600' : 'bg-zinc-800 border border-zinc-700'}`}></div>
                     <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${siteSettings[setting.field] !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
                   </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-tight ${siteSettings[setting.field] !== false ? 'text-zinc-200' : 'text-zinc-500'}`}>
+                  <span className={`text-[10px] font-black uppercase tracking-tighter ${siteSettings[setting.field] !== false ? 'text-zinc-200' : 'text-zinc-500'}`}>
                      {setting.label}
                   </span>
                 </label>
               ))}
             </div>
-            <button 
-              onClick={handleDeleteAllComments}
-              className="px-4 py-2 bg-red-950/30 text-red-400 border border-red-900/30 rounded-xl text-xs font-bold hover:bg-red-900/50 transition-all"
-            >
-              Clear All Comments
-            </button>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+          {/* STATS ROW */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl shadow-xl hover:border-purple-500/30 transition-colors">
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1 italic">Total Vibes</p>
+              <h4 className="text-3xl font-black text-white">{commentsList.length}</h4>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl shadow-xl hover:border-green-500/30 transition-colors">
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1 italic">New Today</p>
+              <h4 className="text-3xl font-black text-white">
+                {commentsList.filter(c => new Date(c.created_at).toDateString() === new Date().toDateString()).length}
+              </h4>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl shadow-xl hover:border-blue-500/30 transition-colors">
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1 italic">Geo Tags</p>
+              <h4 className="text-3xl font-black text-white">
+                {commentsList.filter(c => c.location && c.location !== 'Unknown').length}
+              </h4>
+            </div>
+            <div className="bg-red-950/20 border border-red-900/30 p-5 rounded-2xl shadow-xl group hover:bg-red-900/10 transition-colors cursor-pointer" onClick={handleDeleteAllComments}>
+              <p className="text-[10px] font-black text-red-500/70 uppercase tracking-widest mb-1 italic">DANGER ZONE</p>
+              <h4 className="text-xl font-black text-red-400 mt-2 truncate">Clear All</h4>
+            </div>
+          </div>
+
+          {/* FILTER BAR & BATCH ACTIONS */}
+          <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="flex flex-1 gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                <div className="relative flex-1 min-w-[200px]">
+                  <input 
+                    type="text" 
+                    placeholder="Search vibes..."
+                    value={commentSearch}
+                    onChange={(e) => setCommentSearch(e.target.value)}
+                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-2 text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all placeholder:text-zinc-600"
+                  />
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <input 
+                    type="date" 
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-3 py-2 text-xs font-bold text-zinc-300 outline-none hover:bg-zinc-800 transition-colors [color-scheme:dark]"
+                  />
+                  <select 
+                    value={locationFilter}
+                    onChange={(e) => setLocationFilter(e.target.value)}
+                    className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-3 py-2 text-xs font-bold text-zinc-300 outline-none hover:bg-zinc-800 transition-colors max-w-[100px] md:max-w-none"
+                  >
+                    <option value="all">Everywhere</option>
+                    {[...new Set(commentsList.map(c => c.location).filter(l => l && l !== 'Unknown'))].map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* DESKTOP BATCH ACTIONS (Hidden on Mobile) */}
+              {selectedComments.length > 0 && (
+                <div className="hidden md:flex items-center gap-3 animate-in fade-in slide-in-from-right-2 duration-300">
+                  <span className="text-xs font-black text-purple-400 bg-purple-500/10 px-3 py-2 rounded-lg border border-purple-500/20 whitespace-nowrap">
+                    Selected: {selectedComments.length}
+                  </span>
+                  <button 
+                    onClick={handleDeleteSelected}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/20 transition-all"
+                    disabled={fetchingData}
+                  >
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* MOBILE STICKY BATCH ACTIONS (Visible only on Mobile when selected) */}
+          {selectedComments.length > 0 && (
+            <div className="fixed bottom-6 left-4 right-4 z-50 md:hidden animate-in slide-in-from-bottom-8 duration-500">
+              <div className="bg-zinc-900 border border-purple-500/30 p-4 rounded-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] flex items-center justify-between backdrop-blur-xl bg-opacity-90">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest leading-none mb-1">Moderator Action</span>
+                  <span className="text-lg font-black text-white leading-none">{selectedComments.length} Vibes Selected</span>
+                </div>
+                <button 
+                  onClick={handleDeleteSelected}
+                  className="px-8 py-4 bg-red-600 text-white text-sm font-black rounded-xl shadow-xl shadow-red-600/30 active:scale-95 transition-all"
+                  disabled={fetchingData}
+                >
+                  DELETE ALL
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* COMMENT LIST */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
             {commentsList.length === 0 ? (
-              <div className="text-zinc-500 text-center py-12">No vibes yet. Be the first to post something!</div>
+              <div className="text-zinc-500 text-center py-20 font-medium italic">No vibes discovered yet...</div>
             ) : (
-              <div className="divide-y divide-zinc-800">
-                {commentsList.map((comment) => (
-                  <div key={comment.id} className="p-4 flex items-center justify-between group hover:bg-white/[0.02] transition-colors">
-                    <div className="flex items-center gap-4">
+              <div className="divide-y divide-zinc-800/50">
+                <div className="bg-white/[0.03] p-3 flex items-center gap-4 border-b border-zinc-800">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-purple-600 focus:ring-purple-500 transition-all cursor-pointer"
+                    checked={selectedComments.length > 0 && selectedComments.length === commentsList.length}
+                    onChange={() => toggleSelectAllComments(commentsList.map(c => c.id))}
+                  />
+                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Select All</span>
+                </div>
+                
+                {commentsList
+                  .filter(comment => {
+                    const matchesSearch = comment.content.toLowerCase().includes(commentSearch.toLowerCase()) || 
+                                        comment.user_name.toLowerCase().includes(commentSearch.toLowerCase());
+                    const matchesLocation = locationFilter === 'all' || comment.location === locationFilter;
+                    const matchesDate = !dateFilter || new Date(comment.created_at).toDateString() === new Date(dateFilter).toDateString();
+                    return matchesSearch && matchesLocation && matchesDate;
+                  })
+                  .map((comment) => (
+                  <div 
+                    key={comment.id} 
+                    className={`p-4 md:p-6 flex flex-col md:flex-row items-start gap-4 md:gap-6 group transition-all duration-300 border-l-4 ${selectedComments.includes(comment.id) ? 'bg-purple-500/10 border-purple-500' : 'hover:bg-white/[0.03] border-transparent'}`}
+                  >
+                    {/* SELECT & AVATAR */}
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="relative group/check">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 rounded-lg border-2 border-zinc-700 bg-zinc-800 text-purple-600 focus:ring-purple-500 transition-all cursor-pointer appearance-none checked:bg-purple-600 checked:border-purple-600"
+                          style={{ backgroundImage: selectedComments.includes(comment.id) ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'4\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'20 6 9 17 4 12\'%3E%3C/polyline%3E%3C/svg%3E")' : 'none', backgroundSize: '70% 70%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+                          checked={selectedComments.includes(comment.id)}
+                          onChange={() => toggleCommentSelection(comment.id)}
+                        />
+                      </div>
+
                       <div 
-                        className="w-10 h-10 rounded-full flex items-center justify-center font-black text-xs text-white shadow-lg"
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-2xl relative overflow-hidden group-hover:scale-105 transition-transform"
                         style={{ backgroundColor: comment.color || '#A855F7' }}
                       >
-                        {comment.user_name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-white">{comment.user_name}</span>
-                          {comment.device_info && (
-                            <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">
-                              {comment.device_info}
-                            </span>
-                          )}
-                          {comment.location && comment.location !== 'Unknown' && (
-                            <div className="flex items-center gap-1.5 text-zinc-500">
-                              <Globe size={10} className="text-blue-500/60" />
-                              <span className="text-[9px] font-bold uppercase tracking-tighter">{comment.location}</span>
-                              {comment.latitude && comment.longitude && (
-                                <a 
-                                  href={`https://www.google.com/maps?q=loc:${comment.latitude},${comment.longitude}&z=15`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors group/map"
-                                  title="View Pin-Point Location on Google Maps"
-                                >
-                                  <MapPin size={8} className="group-hover/map:scale-110 transition-transform" />
-                                  <span className="text-[8px] font-black italic">MAP</span>
-                                </a>
-                              )}
-                            </div>
-                          )}
-                          <span className="text-[10px] text-zinc-500 font-medium ml-auto">
-                            {new Date(comment.created_at).toLocaleString()}
-                          </span>
-                        </div>
-                        <p className="text-zinc-300 text-sm mt-0.5">{comment.content}</p>
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50"></div>
+                        <span className="relative z-10">{comment.user_name?.charAt(0).toUpperCase()}</span>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => handleDeleteComment(comment.id)}
-                      className="p-2 text-zinc-500 hover:text-red-400 bg-transparent hover:bg-red-950/30 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      title="Delete Comment"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    
+                    {/* CONTENT & METADATA */}
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-lg font-black text-white tracking-tight leading-none">{comment.user_name}</span>
+                        <div className="h-1 w-1 rounded-full bg-zinc-700"></div>
+                        
+                        {/* TIMESTAMP BADGE */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800/80 border border-zinc-700/50 rounded-full text-[10px] font-bold text-zinc-400">
+                          <Calendar size={10} />
+                          {new Date(comment.created_at).toLocaleDateString()} 
+                          <span className="text-zinc-600">•</span>
+                          {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+
+                        {/* DEVICE BADGE */}
+                        {comment.device_info && (
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider ${comment.device_info.toLowerCase() === 'desktop' ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                            {comment.device_info.toLowerCase() === 'desktop' ? <Monitor size={10} /> : <Smartphone size={10} />}
+                            {comment.device_info}
+                          </div>
+                        )}
+
+                        {/* GEO BADGE */}
+                        {comment.location && comment.location !== 'Unknown' && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-[10px] font-black uppercase tracking-wider">
+                            <Globe size={11} className="animate-pulse" />
+                            {comment.location}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative group/msg">
+                        <MessageSquare size={14} className="absolute -left-6 top-1 text-zinc-700 opacity-0 group-hover/msg:opacity-100 transition-opacity hidden md:block" />
+                        <p className="text-base text-zinc-200 font-medium leading-relaxed max-w-2xl">
+                          {comment.content}
+                        </p>
+                      </div>
+                      
+                      {/* ACTION BAR */}
+                      <div className="flex items-center gap-4 pt-1">
+                        {comment.latitude && comment.longitude && (
+                          <a 
+                            href={`https://www.google.com/maps?q=${comment.latitude},${comment.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-400 hover:text-white bg-purple-500/5 hover:bg-purple-600 px-3.5 py-2 rounded-xl border border-purple-500/20 transition-all shadow-lg hover:shadow-purple-500/20 group/map"
+                          >
+                            <MapPin size={12} className="group-hover/map:scale-125 transition-transform" />
+                            Pinpoint Location
+                          </a>
+                        )}
+                        <button 
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-red-400 transition-colors group/del"
+                        >
+                          <Trash2 size={12} className="group-hover/del:animate-bounce" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* STATUS INDICATOR (RIGHT SIDE) */}
+                    <div className="hidden lg:flex flex-col items-end gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/5 text-green-500/50 rounded-lg text-[8px] font-black uppercase border border-green-500/10">
+                        <ShieldCheck size={10} />
+                        Live Vibe
+                      </div>
+                      <div className="text-[10px] font-bold text-zinc-700 font-mono">#{comment.id.slice(0, 8)}</div>
+                    </div>
                   </div>
                 ))}
               </div>
