@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import Image from "next/image";
-import { Pencil, Trash2, ImageIcon, GripVertical } from "lucide-react";
+import { Pencil, Trash2, ImageIcon, GripVertical, Globe, MapPin } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 export default function AdminPage() {
@@ -74,12 +74,22 @@ export default function AdminPage() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) fetchData();
     });
 
-    return () => subscription.unsubscribe();
+    // REAL-TIME SITE SETTINGS SYNC (Prevents state loss on tab/data refreshes)
+    const settingsChannel = supabase.channel("admin_settings_sync")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "site_settings" }, (payload) => {
+        setSiteSettings(payload.new);
+      })
+      .subscribe();
+
+    return () => {
+      authSub.unsubscribe();
+      settingsChannel.unsubscribe();
+    };
   }, []);
 
   const fetchData = async () => {
@@ -108,7 +118,7 @@ export default function AdminPage() {
     // Fetch Comments
     const { data: commentData } = await supabase
       .from("comments")
-      .select("id, content, user_name, color, device_info, created_at")
+      .select("id, content, user_name, color, device_info, location, latitude, longitude, created_at")
       .order("created_at", { ascending: false });
 
     setItems(gearData || []);
@@ -117,11 +127,18 @@ export default function AdminPage() {
     setPcSpecs(pcData || []);
     setCommentsList(commentData || []);
 
-    const { data: settingsData } = await supabase.from("site_settings").select("show_games, show_pc_specs, show_gear").limit(1).single();
+    const { data: settingsData } = await supabase.from("site_settings").select("id, show_games, show_pc_specs, show_gear, show_floating_comments, show_comment_input, enable_gps").limit(1).single();
     if (settingsData) {
       setSiteSettings(settingsData);
     } else {
-      const { data: newSettings } = await supabase.from("site_settings").insert([{ show_games: true, show_pc_specs: true, show_gear: true }]).select().single();
+      const { data: newSettings } = await supabase.from("site_settings").insert([{ 
+        show_games: true, 
+        show_pc_specs: true, 
+        show_gear: true,
+        show_floating_comments: true,
+        show_comment_input: true,
+        enable_gps: true
+      }]).select().single();
       if (newSettings) setSiteSettings(newSettings);
     }
     
@@ -674,14 +691,14 @@ export default function AdminPage() {
                   <input 
                     type="checkbox" 
                     className="sr-only peer" 
-                    checked={!!siteSettings[setting.field]}
+                    checked={siteSettings[setting.field] !== false}
                     onChange={(e) => handleToggleSetting(setting.field, e.target.checked)}
                     disabled={savingSettings}
                   />
-                  <div className={`block w-11 h-6 rounded-full transition-all duration-300 shadow-inner ${siteSettings[setting.field] ? 'bg-purple-600' : 'bg-zinc-800 border border-zinc-700'} peer-focus:ring-2 peer-focus:ring-purple-500/50`}></div>
-                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-md ${siteSettings[setting.field] ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  <div className={`block w-11 h-6 rounded-full transition-all duration-300 shadow-inner ${siteSettings[setting.field] !== false ? 'bg-purple-600' : 'bg-zinc-800 border border-zinc-700'} peer-focus:ring-2 peer-focus:ring-purple-500/50`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-md ${siteSettings[setting.field] !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </div>
-                <span className={`text-[11px] font-bold transition-colors uppercase tracking-tight ${siteSettings[setting.field] ? 'text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-400'}`}>
+                <span className={`text-[11px] font-bold transition-colors uppercase tracking-tight ${siteSettings[setting.field] !== false ? 'text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-400'}`}>
                    {setting.label}
                 </span>
               </label>
@@ -1403,6 +1420,30 @@ export default function AdminPage() {
               <h2 className="text-xl font-bold text-white">Guestbook Vibes</h2>
               <p className="text-xs text-zinc-500 mt-1">Real-time bullet comments from your visitors</p>
             </div>
+            <div className="flex items-center gap-6">
+              {[
+                { label: 'Floating Stream', field: 'show_floating_comments', icon: '💬' },
+                { label: 'Allow Posting', field: 'show_comment_input', icon: '✉️' },
+                { label: 'Capture GPS', field: 'enable_gps', icon: '🛰️' },
+              ].map(setting => (
+                <label key={setting.field} className="flex items-center gap-2.5 cursor-pointer group select-none">
+                  <div className="relative shrink-0 scale-75">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={siteSettings[setting.field] !== false}
+                      onChange={(e) => handleToggleSetting(setting.field, e.target.checked)}
+                      disabled={savingSettings}
+                    />
+                    <div className={`block w-11 h-6 rounded-full transition-all duration-300 ${siteSettings[setting.field] !== false ? 'bg-purple-600' : 'bg-zinc-800 border border-zinc-700'}`}></div>
+                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${siteSettings[setting.field] !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-tight ${siteSettings[setting.field] !== false ? 'text-zinc-200' : 'text-zinc-500'}`}>
+                     {setting.label}
+                  </span>
+                </label>
+              ))}
+            </div>
             <button 
               onClick={handleDeleteAllComments}
               className="px-4 py-2 bg-red-950/30 text-red-400 border border-red-900/30 rounded-xl text-xs font-bold hover:bg-red-900/50 transition-all"
@@ -1433,7 +1474,25 @@ export default function AdminPage() {
                               {comment.device_info}
                             </span>
                           )}
-                          <span className="text-[10px] text-zinc-500 font-medium">
+                          {comment.location && comment.location !== 'Unknown' && (
+                            <div className="flex items-center gap-1.5 text-zinc-500">
+                              <Globe size={10} className="text-blue-500/60" />
+                              <span className="text-[9px] font-bold uppercase tracking-tighter">{comment.location}</span>
+                              {comment.latitude && comment.longitude && (
+                                <a 
+                                  href={`https://www.google.com/maps?q=loc:${comment.latitude},${comment.longitude}&z=15`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors group/map"
+                                  title="View Pin-Point Location on Google Maps"
+                                >
+                                  <MapPin size={8} className="group-hover/map:scale-110 transition-transform" />
+                                  <span className="text-[8px] font-black italic">MAP</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          <span className="text-[10px] text-zinc-500 font-medium ml-auto">
                             {new Date(comment.created_at).toLocaleString()}
                           </span>
                         </div>

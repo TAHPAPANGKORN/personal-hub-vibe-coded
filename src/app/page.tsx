@@ -44,8 +44,15 @@ async function getPcSpecs() {
 }
 
 async function getSiteSettings() {
-  const { data, error } = await supabase.from("site_settings").select("show_games, show_pc_specs, show_gear").limit(1).single();
-  if (error || !data) return { show_games: true, show_pc_specs: true, show_gear: true };
+  const { data, error } = await supabase.from("site_settings").select("id, show_games, show_pc_specs, show_gear, show_floating_comments, show_comment_input, enable_gps").limit(1).single();
+  if (error || !data) return { 
+    show_games: true, 
+    show_pc_specs: true, 
+    show_gear: true, 
+    show_floating_comments: true, 
+    show_comment_input: true, 
+    enable_gps: true 
+  };
   return data;
 }
 

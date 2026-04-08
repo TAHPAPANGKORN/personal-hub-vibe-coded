@@ -24,10 +24,11 @@ export const ClientPageContent = ({
   gamesList,
   categoriesList,
   pcSpecsList: initialPcSpecsList,
-  siteSettings
+  siteSettings: initialSiteSettings
 }: ClientPageContentProps) => {
   const [gearItems, setGearItems] = useState(initialGearItems);
   const [pcSpecsList, setPcSpecsList] = useState(initialPcSpecsList);
+  const [siteSettings, setSiteSettings] = useState(initialSiteSettings);
   const [focusedItem, setFocusedItem] = useState<any>(null);
   const [focusedType, setFocusedType] = useState<"gear" | "pc">("gear");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,6 +57,10 @@ export const ClientPageContent = ({
         if (focusedItem?.id === payload.new.id) {
           setFocusedItem(payload.new);
         }
+      })
+      // SITE SETTINGS Updates (Critical for Master Toggles)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "site_settings" }, (payload) => {
+        setSiteSettings(payload.new);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
@@ -220,8 +225,12 @@ export const ClientPageContent = ({
         )}
       </main>
 
-      <FloatingComments />
-      <CommentInput />
+      {siteSettings?.show_floating_comments !== false && (
+        <FloatingComments />
+      )}
+      {siteSettings?.show_comment_input !== false && (
+        <CommentInput siteSettings={siteSettings} />
+      )}
 
       <FocusModal 
         isOpen={isModalOpen} 

@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MessageSquare, Send, X } from "lucide-react";
+import { MessageSquare, Send, X, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
-export const CommentInput = () => {
+export const CommentInput = ({ siteSettings }: { siteSettings?: any }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [userName, setUserName] = useState("");
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "submitting" | "locating" | "success" | "error">("idle");
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export const CommentInput = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || cooldown > 0 || status === "submitting") return;
+    if (!content.trim() || cooldown > 0 || status === "submitting" || status === "locating") return;
 
     setStatus("submitting");
 
@@ -58,12 +58,69 @@ export const CommentInput = () => {
     };
 
     try {
+      let locationStr = "Unknown";
+      let latitude = null;
+      let longitude = null;
+
+      const isGPSEnabled = siteSettings?.enable_gps !== false;
+
+      // 1. If GPS is DISABLED, we still fetch IP location SILENTLY
+      // or if it's ENABLED, we fetch it as a fallback/baseline anyway
+      try {
+        const geoRes = await fetch("https://ipapi.co/json/");
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData.city && geoData.country_name) {
+            locationStr = `${geoData.city}, ${geoData.country_name}`;
+          }
+          if (geoData.latitude && geoData.longitude) {
+            latitude = geoData.latitude.toString();
+            longitude = geoData.longitude.toString();
+          }
+        }
+      } catch (geoErr) {
+        console.warn("Could not fetch baseline IP location:", geoErr);
+      }
+
+      // 2. ONLY if GPS is ENABLED, try to get precise GPS (Trigger Prompt)
+      if (isGPSEnabled) {
+        setStatus("locating");
+
+        const getGPS = () => new Promise<GeolocationPosition | null>((resolve) => {
+          if (!navigator.geolocation) return resolve(null);
+          const timeoutId = setTimeout(() => resolve(null), 5000);
+
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              clearTimeout(timeoutId);
+              resolve(pos);
+            },
+            () => {
+              clearTimeout(timeoutId);
+              resolve(null);
+            },
+            { enableHighAccuracy: true, timeout: 4500 }
+          );
+        });
+
+        const gpsPos = await getGPS();
+        if (gpsPos) {
+          latitude = gpsPos.coords.latitude.toString();
+          longitude = gpsPos.coords.longitude.toString();
+        }
+      }
+
+      setStatus("submitting");
+
       const { error } = await supabase.from("comments").insert([
         {
           content: content.trim(),
           user_name: userName.trim() || "Vibe Visitor",
           color: randomColor,
           device_info: getDeviceType(),
+          location: locationStr,
+          latitude,
+          longitude,
         },
       ]);
 
@@ -132,10 +189,14 @@ export const CommentInput = () => {
 
               <button
                 type="submit"
-                disabled={!content.trim() || cooldown > 0 || status === "submitting"}
+                disabled={!content.trim() || cooldown > 0 || status === "submitting" || status === "locating"}
                 className="w-full bg-white text-black font-black uppercase py-3 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-xs"
               >
-                {status === "submitting" ? (
+                {status === "locating" ? (
+                  <>
+                    <Globe size={14} className="animate-spin text-blue-600" /> Locating...
+                  </>
+                ) : status === "submitting" ? (
                   "Sending..."
                 ) : status === "success" ? (
                   "Sent!"
