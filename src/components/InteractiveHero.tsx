@@ -68,7 +68,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
   };
 
   return (
-    <section className="relative max-w-7xl mx-auto px-4 md:px-8 mb-16 py-10 group/hero">
+    <section className="relative max-w-7xl mx-auto px-4 md:px-8 mb-16 py-10 group/hero will-change-transform">
       
       {/* 1. AMBIENT GLOW BACKDROP - Desktop Only for performance and clarity */}
       <AnimatePresence>
@@ -76,10 +76,10 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 0.5, scale: 1 }}
-            className="absolute -inset-48 -z-10 blur-[160px] pointer-events-none hidden md:block"
+            className="absolute -inset-48 -z-10 blur-[80px] pointer-events-none hidden md:block"
           >
-            <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-purple-600/30 rounded-full animate-pulse-slow" />
-            <div className="absolute top-1/2 right-1/4 w-[400px] h-[400px] bg-blue-600/20 rounded-full animate-pulse-slow" style={{ animationDelay: '2s' }} />
+            <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-purple-600/20 rounded-full animate-pulse-slow font-medium" />
+            <div className="absolute top-1/2 right-1/4 w-[400px] h-[400px] bg-blue-600/15 rounded-full animate-pulse-slow" style={{ animationDelay: '2s' }} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -97,15 +97,15 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
         <div 
           ref={containerRef}
           onClick={handleContainerClick}
-          className="relative group overflow-hidden rounded-2xl md:rounded-[2.5rem] border border-white/10 bg-zinc-900/50 backdrop-blur-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)]"
+          className="relative group overflow-hidden rounded-2xl md:rounded-[2.5rem] border border-white/10 bg-zinc-900/40 backdrop-blur-lg md:backdrop-blur-xl shadow-2xl md:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)]"
         >
           {/* Aspect Ratio Box — Standard 16:9 */}
-          <div className={`relative aspect-video w-full overflow-hidden transition-all duration-700 ${activeId ? "scale-[1.01]" : "scale-100"}`}>
+          <div className={`relative aspect-video w-full overflow-hidden transition-all duration-700 ${activeId ? "scale-[1.01]" : "scale-100"} will-change-transform`}>
             <Image
               src={imageUrl}
               alt="Setup"
               fill
-              className={`object-cover transition-all duration-1000 ${activeId ? "brightness-[0.3] scale-105" : "brightness-100"}`}
+              className={`object-cover transition-all duration-1000 ${activeId ? "brightness-[0.3] scale-105" : "brightness-100"} will-change-transform`}
               priority
             />
           
@@ -139,22 +139,15 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
                   style={{ left: `${h.x_percent}%`, top: `${h.y_percent}%` }}
                   {...triggerProps}
                 >
-                  <div className="relative">
-                    {/* SOFT DUAL RING PULSE - Much more subtle now */}
-                    {!isActive && (
-                      <>
+                    <div className="relative">
+                      {/* SOFT RING PULSE - Simplified for Performance */}
+                      {!isActive && (
                         <motion.div
-                          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                          className="absolute inset-0 bg-purple-500 rounded-full blur-[1px]"
+                          animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }}
+                          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute inset-0 bg-purple-500 rounded-full blur-[1px] will-change-transform"
                         />
-                        <motion.div
-                          animate={{ scale: [1, 2.2, 1], opacity: [0.15, 0, 0.15] }}
-                          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                          className="absolute inset-0 bg-purple-400 rounded-full blur-[2px]"
-                        />
-                      </>
-                    )}
+                      )}
 
                     {/* Touch Target (Larger on Mobile) */}
                     <div className={`cursor-pointer flex items-center justify-center transition-all duration-500 ${isMobile ? "w-10 h-10" : "w-6 h-6"}`}>
@@ -188,7 +181,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
                           "left-1/2 -translate-x-1/2"
                         }`}
                       >
-                        <div className="bg-zinc-950/80 backdrop-blur-2xl border border-white/10 p-5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] min-w-[280px] group/card relative">
+                        <div className="bg-zinc-950/80 backdrop-blur-xl border border-white/10 p-5 rounded-3xl shadow-2xl min-w-[280px] group/card relative">
                           <HeaderBlock data={data} onOpenFocus={onOpenFocus} />
                           <ActionButtons data={data} onOpenFocus={onOpenFocus} />
                           
@@ -219,7 +212,7 @@ export function InteractiveHero({ imageUrl, hotspots, gearItems, pcSpecs, onOpen
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="absolute inset-x-0 bottom-0 z-50 bg-zinc-950/95 backdrop-blur-3xl border-t border-white/10 rounded-t-[2rem] p-6 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]"
+                className="absolute inset-x-0 bottom-0 z-50 bg-zinc-950/98 border-t border-white/10 rounded-t-[2rem] p-6 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] will-change-transform"
               >
                 <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6" />
                 <div className="flex justify-between items-start mb-6">
